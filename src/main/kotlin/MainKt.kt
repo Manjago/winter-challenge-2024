@@ -22,12 +22,13 @@ fun main() {
             val organRootId = input.nextInt()
 
             when {
-                type == "A" -> brain.proteinA.add(GridPoint(x, y))
-                owner == 1 && (type == "ROOT" || type == "BASIC") -> brain.organ.add(GridPoint(x, y))
+                type == "A" -> brain.proteinsA.add(GridPoint(x, y))
+                owner == 1 && (type == "ROOT" || type == "BASIC") -> brain.organs.add(GridPoint(x, y))
             }
 
         }
         val myA = input.nextInt()
+        brain.aStock = myA
         val myB = input.nextInt()
         val myC = input.nextInt()
         val myD = input.nextInt() // your protein stock
@@ -43,7 +44,7 @@ fun main() {
             // Write an action using println()
             // To debug: System.err.println("Debug messages...");
 
-            println("WAIT")
+            println(brain.move())
         }
     }
 }
@@ -53,16 +54,31 @@ data class GridPoint(val x: Int, val y: Int)
 
 class Brain(
     val width: Int, val height: Int,
-    val proteinA: MutableList<GridPoint> = arrayListOf(),
-    val organ: MutableList<GridPoint> = arrayListOf(),
+    val proteinsA: MutableList<GridPoint> = arrayListOf(),
+    val organs: MutableList<GridPoint> = arrayListOf(),
+    var aStock: Int = 0
 ) {
 
+    fun move(): String {
+
+        for (organ in organs) {
+
+        }
+
+        return "WAIT"
+    }
+
+    fun GridPoint.nearestA(): GridPoint? {
+        return null
+    }
+
+
     fun clear() {
-        proteinA.clear()
-        organ.clear()
+        proteinsA.clear()
+        organs.clear()
     }
 
     override fun toString(): String {
-        return "A=${proteinA.size},o=${organ.size}"
+        return "A=${proteinsA.size},o=${organs.size},a=$aStock"
     }
 }
