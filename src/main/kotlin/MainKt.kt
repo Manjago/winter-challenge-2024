@@ -6,6 +6,7 @@ fun main() {
     val height = input.nextInt() // rows in the game grid
 
     val brain = Brain(width, height)
+
     // game loop
     while (true) {
         brain.clear()
