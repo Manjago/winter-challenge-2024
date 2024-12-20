@@ -4,6 +4,9 @@ import kotlin.math.abs
 
 data class GridPoint(val x: Int, val y: Int) {
     operator fun plus(other: GridPoint): GridPoint = GridPoint(x + other.x, y + other.y)
+    override fun toString(): String {
+        return "($x, $y)"
+    }
 }
 
 val NORTH = GridPoint(0, -1)
@@ -15,7 +18,7 @@ val directions = listOf(
     NORTH, SOUTH, EAST, WEST
 )
 
-lateinit var allPoints: MutableList<GridPoint>
+val allPoints = mutableListOf<GridPoint>()
 
 enum class Item {
   SPACE, WALL, ROOT, BASIC, A
@@ -31,6 +34,8 @@ enum class MeOrEnemy {
       }
   }
 }
+
+fun debug(v: String) = System.err.println(v)
 
 fun display(x: Int, y: Int): Char {
     val item = grid[y][x]
@@ -108,16 +113,18 @@ fun dist(a: GridPoint, b: GridPoint): Int = abs(a.x - b.x) + abs(a.y - b.y)
 
 fun move(): String {
 
-
     data class FromTo(val from: GridPoint, val to: GridPoint, val dist: Int)
     val all = mutableListOf<FromTo>()
 
     val myOrgans = getMyOrgans()
     for(myOrgan in myOrgans) {
+        debug("Find for organ $myOrgan")
         val pretenderA = myOrgan.getNearestA()
         if (pretenderA != null) {
             val dist = dist(myOrgan, pretenderA)
-            all.add(FromTo(myOrgan, pretenderA, dist))
+            val element = FromTo(myOrgan, pretenderA, dist)
+            debug("Pretender found $element")
+            all.add(element)
         }
     }
 
@@ -191,13 +198,14 @@ fun main() {
         val oppD = input.nextInt() // opponent's protein stock
         val requiredActionsCount =
             input.nextInt() // your number of organisms, output an action for each one in any order
-        System.err.println(display())
+        //System.err.println(display())
         for (i in 0 until requiredActionsCount) {
 
             // Write an action using println()
             // To debug: System.err.println("Debug messages...");
 
-            println("WAIT")
+            val move = move()
+            println(move)
         }
     }
 }
