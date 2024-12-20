@@ -35,7 +35,13 @@ enum class MeOrEnemy {
   }
 }
 
-fun debug(v: String) = System.err.println(v)
+val debugEnabled = false
+
+fun debug(v: String) {
+    if (debugEnabled) {
+        System.err.println(v)
+    }
+}
 
 fun display(x: Int, y: Int): Char {
     val item = grid[y][x]
