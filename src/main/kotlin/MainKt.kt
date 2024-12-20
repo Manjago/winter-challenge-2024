@@ -139,7 +139,7 @@ fun move(): String {
         val organId = move.from.organId()
         val xTo = move.to.x
         val yTo = move.to.y
-        "GROW $organId $xTo $yTo"
+        "GROW $organId $xTo $yTo BASIC"
     }
 }
 
