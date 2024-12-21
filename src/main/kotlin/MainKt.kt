@@ -23,9 +23,10 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
         return when (item) {
             Item.SPACE -> '.'
             Item.WALL -> '#'
-            Item.ROOT -> if (meOrEnemy == MeOrEnemy.ME) 'R' else 'W'
+            Item.ROOT -> if (meOrEnemy == MeOrEnemy.ME) 'R' else 'r'
             Item.BASIC -> if (meOrEnemy == MeOrEnemy.ME) '+' else '*'
             Item.A -> 'A'
+            Item.HARVESTER -> if (meOrEnemy == MeOrEnemy.ME) 'H' else 'h'
         }
     }
 
@@ -42,7 +43,7 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
 
 
     private enum class Item {
-        SPACE, WALL, ROOT, BASIC, A
+        SPACE, WALL, ROOT, BASIC, A, HARVESTER
     }
 
     private enum class MeOrEnemy {
@@ -65,32 +66,52 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
     var aStock: Int = 0
 
     fun fill(x: Int, y: Int, type: String, owner: Int, organId: Int) {
+
+        fun registerOrgan() {
+            meOrEnemy[y][x] = MeOrEnemy.byInt(owner)
+            organIds[y][x] = organId
+        }
+
         when (type) {
             "WALL" -> grid[y][x] = Item.WALL
-            "ROOT" -> {
-                grid[y][x] = Item.ROOT
-                meOrEnemy[y][x] = MeOrEnemy.byInt(owner)
-                organIds[y][x] = organId
-            }
-
-            "BASIC" -> {
-                grid[y][x] = Item.BASIC
-                meOrEnemy[y][x] = MeOrEnemy.byInt(owner)
-                organIds[y][x] = organId
-            }
-
+            "ROOT" -> grid[y][x] = Item.ROOT.also { registerOrgan() }
+            "BASIC" -> grid[y][x] = Item.BASIC.also { registerOrgan() }
+            "HARVESTER" -> grid[y][x] = Item.HARVESTER.also { registerOrgan() }
             "A" -> grid[y][x] = Item.A
         }
     }
 
     fun getMyOrgans(): Sequence<GridPoint> = allPoints.asSequence().filter { isOrgan(it) && isMy(it) }
+    fun getProteinA(): Sequence<GridPoint> = allPoints.asSequence().filter { isA(it) }
 
-    fun isA(point: GridPoint): Boolean = grid[point.y][point.x] == Item.A
+    fun isA(point: GridPoint): Boolean = inbound(point) && grid[point.y][point.x] == Item.A
     fun isSpace(point: GridPoint): Boolean = grid[point.y][point.x] == Item.SPACE
-    fun isOrgan(point: GridPoint): Boolean = grid[point.y][point.x] == Item.ROOT || grid[point.y][point.x] == Item.BASIC
+    fun isOrgan(point: GridPoint): Boolean = grid[point.y][point.x] == Item.ROOT || grid[point.y][point.x] == Item.BASIC || grid[point.y][point.x] == Item.HARVESTER
     fun isMy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ME
     fun organId(point: GridPoint): Int = organIds[point.y][point.x]
     fun inbound(point: GridPoint) = point.x in 0 until grid[0].size && point.y in 0 until grid.size
+
+    fun neighbours(point: GridPoint): List<GridPoint> {
+        val result = mutableListOf<GridPoint>()
+        for (dir in directions) {
+            val pretender = point + dir
+            if (inbound(pretender)) {
+                result.add(GridPoint(pretender.x, pretender.y))
+            }
+        }
+        return result
+    }
+
+    companion object {
+        val NORTH = GridPoint(0, -1)
+        val SOUTH = GridPoint(0, 1)
+        val WEST = GridPoint(-1, 0)
+        val EAST = GridPoint(1, 0)
+
+        private val directions = listOf(
+            NORTH, SOUTH, EAST, WEST
+        )
+    }
 
 }
 
@@ -98,16 +119,10 @@ class Logic {
 
     lateinit var desk: Desk
 
-    fun GridPoint.neighbours(): List<GridPoint> {
-        val result = mutableListOf<GridPoint>()
-        for (dir in directions) {
-            val pretender = this + dir
-            if (desk.inbound(pretender)) {
-                result.add(GridPoint(pretender.x, pretender.y))
-            }
-        }
-        return result
+    enum class State {
+        PREPARE_HARV, PROTECT_HARV, KILL_A
     }
+    var state = State.PREPARE_HARV
 
     fun GridPoint.getNearestA(): GridPoint? {
         val queue = ArrayDeque<GridPoint>()
@@ -124,7 +139,7 @@ class Logic {
                 return current
             }
 
-            current.neighbours().asSequence().filter { desk.isSpace(it) || desk.isA(it) }.forEach { neighbour ->
+            desk.neighbours(current).asSequence().filter { desk.isSpace(it) || desk.isA(it) }.forEach { neighbour ->
                 queue.add(neighbour)
             }
 
@@ -134,7 +149,72 @@ class Logic {
 
     fun dist(a: GridPoint, b: GridPoint): Int = abs(a.x - b.x) + abs(a.y - b.y)
 
-    fun move(): String {
+    fun minPath(from: GridPoint, to: Set<GridPoint>, filter: (GridPoint) -> Boolean): List<GridPoint>? {
+        val queue = ArrayDeque<List<GridPoint>>()
+        queue.add(listOf(from))
+        val seen = mutableSetOf<GridPoint>()
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            val lastElement = current.last()
+
+            if (seen.contains(lastElement)) {
+                continue
+            }
+            seen += lastElement
+
+            if (to.contains(lastElement)) {
+                return current
+            }
+
+            desk.neighbours(lastElement).asSequence().filter { filter(it)}.forEach { neighbour ->
+                queue.add(current + neighbour)
+            }
+
+        }
+
+        return null
+    }
+
+    fun minPath(from: Sequence<GridPoint>, to: Set<GridPoint>, filter: (GridPoint) -> Boolean): List<List<GridPoint>> {
+        return from.map { minPath(it, to, filter) }.filterNotNull().filter { it.isNotEmpty() }.toList()
+    }
+
+    fun moveWood3League(): String {
+
+        when (state) {
+            State.PREPARE_HARV -> {
+                val myOrgans = desk.getMyOrgans()
+                val aNeighbours = desk.getProteinA().asSequence().flatMap { desk.neighbours(it) }.filter { desk.isSpace(it) }.toSet()
+                val pathToHarv: List<GridPoint>? = minPath(myOrgans, aNeighbours, desk::isSpace).minByOrNull { it.size }
+                if (pathToHarv == null) {
+                    return "WAIT"
+                }
+
+                val next = pathToHarv.first()
+                val organId = desk.organId(next)
+                val xTo = next.x
+                val yTo = next.y
+                return if (aNeighbours.contains(next)) {
+                    when {
+                        desk.isA(next + Desk.NORTH) -> "GROW $organId $xTo $yTo HARVESTER N".also { state = State.PROTECT_HARV }
+                        desk.isA(next + Desk.EAST) -> "GROW $organId $xTo $yTo HARVESTER E".also { state = State.PROTECT_HARV }
+                        desk.isA(next + Desk.WEST) -> "GROW $organId $xTo $yTo HARVESTER W".also { state = State.PROTECT_HARV }
+                        desk.isA(next + Desk.SOUTH) -> "GROW $organId $xTo $yTo HARVESTER S".also { state = State.PROTECT_HARV }
+                        else -> "WAIT"
+                    }
+                } else {
+                    "GROW $organId $xTo $yTo BASIC"
+                }
+            }
+            State.PROTECT_HARV -> TODO()
+            State.KILL_A -> TODO()
+        }
+
+
+        return "WAIT"
+    }
+
+    fun moveWood4League(): String {
 
         data class FromTo(val from: GridPoint, val to: GridPoint, val dist: Int)
 
@@ -165,17 +245,6 @@ class Logic {
             val yTo = move.to.y
             "GROW $organId $xTo $yTo BASIC"
         }
-    }
-
-    companion object {
-        private val NORTH = GridPoint(0, -1)
-        private val SOUTH = GridPoint(0, 1)
-        private val WEST = GridPoint(-1, 0)
-        private val EAST = GridPoint(1, 0)
-
-        private val directions = listOf(
-            NORTH, SOUTH, EAST, WEST
-        )
     }
 
 }
@@ -229,7 +298,7 @@ fun main() {
             // Write an action using println()
             // To debug: System.err.println("Debug messages...");
 
-            val move = logic.move()
+            val move = logic.moveWood4League()
             println(move)
         }
     }
