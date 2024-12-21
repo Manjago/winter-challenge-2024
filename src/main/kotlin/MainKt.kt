@@ -207,7 +207,7 @@ class Logic {
                     "GROW $organId $xTo $yTo BASIC"
                 }
             }
-            State.PROTECT_HARV -> TODO()
+            State.PROTECT_HARV -> return "WAIT"
             State.KILL_A -> TODO()
         }
 
