@@ -31,9 +31,9 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
 
     fun display(): String {
         val sb = StringBuilder()
-        for(y in 0 until height) {
-            for(x in 0 until width) {
-                sb.append(display(x,y))
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                sb.append(display(x, y))
             }
             sb.append('\n')
         }
@@ -47,8 +47,9 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
 
     private enum class MeOrEnemy {
         UNKNOWN, ME, ENEMY;
+
         companion object {
-            fun byInt(value: Int): MeOrEnemy = when(value) {
+            fun byInt(value: Int): MeOrEnemy = when (value) {
                 1 -> ME
                 0 -> ENEMY
                 else -> UNKNOWN
@@ -56,9 +57,10 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
         }
     }
 
-    private val grid: Array<Array<Item>> = Array<Array<Item>>(height) {Array<Item>(width) {Item.SPACE} }
-    private val meOrEnemy: Array<Array<MeOrEnemy>> = Array<Array<MeOrEnemy>>(height) {Array<MeOrEnemy>(width) {MeOrEnemy.UNKNOWN} }
-    private val organIds: Array<Array<Int>> = Array<Array<Int>>(height) {Array<Int>(width) {0} }
+    private val grid: Array<Array<Item>> = Array(height) { Array(width) { Item.SPACE } }
+    private val meOrEnemy: Array<Array<MeOrEnemy>> =
+        Array(height) { Array(width) { MeOrEnemy.UNKNOWN } }
+    private val organIds: Array<Array<Int>> = Array(height) { Array(width) { 0 } }
 
     var aStock: Int = 0
 
@@ -70,11 +72,13 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
                 meOrEnemy[y][x] = MeOrEnemy.byInt(owner)
                 organIds[y][x] = organId
             }
+
             "BASIC" -> {
                 grid[y][x] = Item.BASIC
                 meOrEnemy[y][x] = MeOrEnemy.byInt(owner)
                 organIds[y][x] = organId
             }
+
             "A" -> grid[y][x] = Item.A
         }
     }
@@ -96,25 +100,25 @@ class Logic {
 
     fun GridPoint.neighbours(): List<GridPoint> {
         val result = mutableListOf<GridPoint>()
-        for(dir in directions) {
+        for (dir in directions) {
             val pretender = this + dir
-            if (desk.inbound(pretender)){
+            if (desk.inbound(pretender)) {
                 result.add(GridPoint(pretender.x, pretender.y))
             }
         }
         return result
     }
 
-    fun GridPoint.getNearestA() : GridPoint? {
+    fun GridPoint.getNearestA(): GridPoint? {
         val queue = ArrayDeque<GridPoint>()
         queue.add(this)
         val seen = mutableSetOf<GridPoint>()
-        while(queue.isNotEmpty()) {
+        while (queue.isNotEmpty()) {
             val current = queue.removeFirst()
             if (seen.contains(current)) {
                 continue
             }
-            seen.add(current)
+            seen += current
 
             if (desk.isA(current)) {
                 return current
@@ -152,7 +156,7 @@ class Logic {
             return "WAIT"
         }
 
-        val move: FromTo? = all.asSequence().sortedBy { it.dist }.firstOrNull()
+        val move: FromTo? = all.minByOrNull { it.dist }
         return if (move == null) {
             "WAIT"
         } else {
