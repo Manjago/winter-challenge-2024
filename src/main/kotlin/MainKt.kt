@@ -190,16 +190,17 @@ class Logic {
                     return "WAIT"
                 }
 
-                val next = pathToHarv.first()
-                val organId = desk.organId(next)
-                val xTo = next.x
-                val yTo = next.y
-                return if (aNeighbours.contains(next)) {
+                val from = pathToHarv.first()
+                val organId = desk.organId(from)
+                val to = pathToHarv[1]
+                val xTo = to.x
+                val yTo = to.y
+                return if (aNeighbours.contains(to)) {
                     when {
-                        desk.isA(next + Desk.NORTH) -> "GROW $organId $xTo $yTo HARVESTER N".also { state = State.PROTECT_HARV }
-                        desk.isA(next + Desk.EAST) -> "GROW $organId $xTo $yTo HARVESTER E".also { state = State.PROTECT_HARV }
-                        desk.isA(next + Desk.WEST) -> "GROW $organId $xTo $yTo HARVESTER W".also { state = State.PROTECT_HARV }
-                        desk.isA(next + Desk.SOUTH) -> "GROW $organId $xTo $yTo HARVESTER S".also { state = State.PROTECT_HARV }
+                        desk.isA(to + Desk.NORTH) -> "GROW $organId $xTo $yTo HARVESTER N".also { state = State.PROTECT_HARV }
+                        desk.isA(to + Desk.EAST) -> "GROW $organId $xTo $yTo HARVESTER E".also { state = State.PROTECT_HARV }
+                        desk.isA(to + Desk.WEST) -> "GROW $organId $xTo $yTo HARVESTER W".also { state = State.PROTECT_HARV }
+                        desk.isA(to + Desk.SOUTH) -> "GROW $organId $xTo $yTo HARVESTER S".also { state = State.PROTECT_HARV }
                         else -> "WAIT"
                     }
                 } else {
@@ -298,7 +299,7 @@ fun main() {
             // Write an action using println()
             // To debug: System.err.println("Debug messages...");
 
-            val move = logic.moveWood4League()
+            val move = logic.moveWood3League()
             println(move)
         }
     }
