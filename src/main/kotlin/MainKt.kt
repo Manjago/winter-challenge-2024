@@ -120,9 +120,10 @@ class Logic {
     lateinit var desk: Desk
 
     enum class State {
-        PREPARE_HARV, PROTECT_HARV, KILL_A
+        PREPARE_HARV, JUST_GROW
     }
     var state = State.PREPARE_HARV
+    var harv: GridPoint? = null
 
     fun GridPoint.getNearestA(): GridPoint? {
         val queue = ArrayDeque<GridPoint>()
@@ -196,56 +197,39 @@ class Logic {
                 val xTo = to.x
                 val yTo = to.y
                 return if (aNeighbours.contains(to)) {
+                    harv = to
                     when {
-                        desk.isA(to + Desk.NORTH) -> "GROW $organId $xTo $yTo HARVESTER N".also { state = State.PROTECT_HARV }
-                        desk.isA(to + Desk.EAST) -> "GROW $organId $xTo $yTo HARVESTER E".also { state = State.PROTECT_HARV }
-                        desk.isA(to + Desk.WEST) -> "GROW $organId $xTo $yTo HARVESTER W".also { state = State.PROTECT_HARV }
-                        desk.isA(to + Desk.SOUTH) -> "GROW $organId $xTo $yTo HARVESTER S".also { state = State.PROTECT_HARV }
-                        else -> "WAIT"
+                        desk.isA(to + Desk.NORTH) -> "GROW $organId $xTo $yTo HARVESTER N".also { state = State.JUST_GROW}
+                        desk.isA(to + Desk.EAST) -> "GROW $organId $xTo $yTo HARVESTER E".also { state = State.JUST_GROW }
+                        desk.isA(to + Desk.WEST) -> "GROW $organId $xTo $yTo HARVESTER W".also { state = State.JUST_GROW }
+                        desk.isA(to + Desk.SOUTH) -> "GROW $organId $xTo $yTo HARVESTER S".also { state = State.JUST_GROW }
+                        else -> throw IllegalStateException("Where my A?")
                     }
                 } else {
                     "GROW $organId $xTo $yTo BASIC"
                 }
             }
-            State.PROTECT_HARV -> return "WAIT"
-            State.KILL_A -> TODO()
+            State.JUST_GROW -> {
+
+                val pretenders = desk.getMyOrgans().asSequence().filter {
+                    desk.neighbours(it).any { desk.isSpace(it) }
+                }.toList()
+
+                if (pretenders.isEmpty()) {
+                    return "WAIT"
+                }
+
+                val organFrom = pretenders.random()
+                val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpace(it) }.toList().random()
+                val organId = desk.organId(organFrom)
+                val xTo = next.x
+                val yTo = next.y
+                return "GROW $organId $xTo $yTo BASIC"
+            }
         }
 
 
         return "WAIT"
-    }
-
-    fun moveWood4League(): String {
-
-        data class FromTo(val from: GridPoint, val to: GridPoint, val dist: Int)
-
-        val all = mutableListOf<FromTo>()
-
-        val myOrgans = desk.getMyOrgans()
-        for (myOrgan in myOrgans) {
-            debug("Find for organ $myOrgan")
-            val pretenderA = myOrgan.getNearestA()
-            if (pretenderA != null) {
-                val dist = dist(myOrgan, pretenderA)
-                val element = FromTo(myOrgan, pretenderA, dist)
-                debug("Pretender found $element")
-                all.add(element)
-            }
-        }
-
-        if (all.isEmpty()) {
-            return "WAIT"
-        }
-
-        val move: FromTo? = all.minByOrNull { it.dist }
-        return if (move == null) {
-            "WAIT"
-        } else {
-            val organId = desk.organId(move.from)
-            val xTo = move.to.x
-            val yTo = move.to.y
-            "GROW $organId $xTo $yTo BASIC"
-        }
     }
 
 }
