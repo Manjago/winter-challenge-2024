@@ -1,6 +1,8 @@
 import java.util.*
 import kotlin.math.abs
 
+lateinit var desk: Desk
+
 data class GridPoint(val x: Int, val y: Int) {
     operator fun plus(other: GridPoint): GridPoint = GridPoint(x + other.x, y + other.y)
     operator fun minus(other: GridPoint): GridPoint = GridPoint(x - other.x, y - other.y)
@@ -131,24 +133,66 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
 
 object Move {
     val WAIT = "WAIT"
-}
-
-class Logic {
-    lateinit var desk: Desk
-
-    fun dirCharByDirPoint(dirPos: GridPoint): Char = when(dirPos) {
+    private fun dirCharByDirPoint(dirPos: GridPoint): Char = when(dirPos) {
         Desk.NORTH -> 'N'
         Desk.EAST -> 'E'
         Desk.SOUTH -> 'S'
         Desk.WEST -> 'W'
         else -> throw IllegalArgumentException("dirPos $dirPos is not a valid direction")
     }
+}
+
+class Sensor {
+    fun isNeedTentacles(): Boolean {
+        //todo
+        return false
+    }
+    fun isMaySpore(): Boolean {
+        //todo
+        return false
+    }
+    fun isNeedResources(): Boolean {
+        //todo
+        return false
+    }
+}
+
+class Action {
+    fun doTentacles(): String {
+        //todo
+        return Move.WAIT
+    }
+    fun doSpore(): String {
+        //todo
+        return Move.WAIT
+    }
+    fun obtainResources(): String {
+        //todo
+        return Move.WAIT
+    }
+    fun justGrow(): String {
+        //todo
+        return Move.WAIT
+    }
+}
+
+class Logic {
+
+    val sensor = Sensor()
+    val action = Action()
 
     fun move(orgNum: Int): String {
         val currentRoot = desk.getMyRoots().sortedBy { desk.organId(it) }.drop(orgNum).first()
         val currentRootOrganId = desk.organRootId(currentRoot)
         debug("root: $currentRootOrganId")
-        return Move.WAIT
+
+        return when {
+            sensor.isNeedTentacles() -> action.doTentacles()
+            sensor.isMaySpore() -> action.doSpore()
+            sensor.isNeedResources() -> action.obtainResources()
+            else -> action.justGrow()
+        }
+
     }
 
 }
@@ -169,7 +213,7 @@ fun main() {
 
     // game loop
     while (true) {
-        val desk = Desk(width, height, allPoints)
+        desk = Desk(width, height, allPoints)
         val entityCount = input.nextInt()
         repeat(entityCount) {
             val x = input.nextInt()
@@ -197,7 +241,6 @@ fun main() {
         val requiredActionsCount =
             input.nextInt() // your number of organisms, output an action for each one in any order
         //System.err.println(display())
-        logic.desk = desk
         for (i in 0 until requiredActionsCount) {
 
             // Write an action using println()
