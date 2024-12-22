@@ -4,45 +4,27 @@ import kotlin.math.abs
 data class GridPoint(val x: Int, val y: Int) {
     operator fun plus(other: GridPoint): GridPoint = GridPoint(x + other.x, y + other.y)
     operator fun minus(other: GridPoint): GridPoint = GridPoint(x - other.x, y - other.y)
-    fun sameLine(other: GridPoint): Boolean = this.x == other.x || y == other.y
+    fun isSameLine(other: GridPoint): Boolean = this.x == other.x || y == other.y
     override fun toString(): String = "($x,$y)"
 }
 
-val debugEnabled = true
-fun debug(v: String) {
-    if (debugEnabled) {
-        System.err.println(v)
-    }
+fun dist(a: GridPoint, b: GridPoint): Int = abs(a.x - b.x) + abs(a.y - b.y)
+
+fun sgn(a: Int) : Int = when {
+    a < 0 -> -1
+    a > 0 -> +1
+    else -> 0
 }
 
+fun normalizeDirPoint(rawDirPoint: GridPoint): GridPoint {
+    return GridPoint(sgn(rawDirPoint.x), sgn(rawDirPoint.y))
+}
+
+fun debug(v: String) = System.err.println(v)
+
+data class ProteinStock(val a: Int, val b: Int, val c: Int, val d: Int)
+
 class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
-
-    private fun display(x: Int, y: Int): Char {
-        val item = grid[y][x]
-        val meOrEnemy = meOrEnemy[y][x]
-        return when (item) {
-            Item.SPACE -> '.'
-            Item.WALL -> '#'
-            Item.ROOT -> if (meOrEnemy == MeOrEnemy.ME) 'R' else 'r'
-            Item.BASIC -> if (meOrEnemy == MeOrEnemy.ME) '+' else '*'
-            Item.A -> 'A'
-            Item.HARVESTER -> if (meOrEnemy == MeOrEnemy.ME) 'H' else 'h'
-            Item.TENTACLE -> if (meOrEnemy == MeOrEnemy.ME) 'T' else 't'
-            Item.SPORER -> if (meOrEnemy == MeOrEnemy.ME) 'S' else 's'
-        }
-    }
-
-    fun display(): String {
-        val sb = StringBuilder()
-        for (y in 0 until height) {
-            for (x in 0 until width) {
-                sb.append(display(x, y))
-            }
-            sb.append('\n')
-        }
-        return sb.toString()
-    }
-
 
     private enum class Item {
         SPACE, WALL, ROOT, BASIC, A, HARVESTER, TENTACLE, SPORER
@@ -60,20 +42,39 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
         }
     }
 
+    private enum class OrganDir {
+        N, W, E, S, X;
+        companion object {
+            fun parseString(v: String) : OrganDir = when (v) {
+                "N" -> N
+                "W" -> W
+                "E" -> E
+                "S" -> S
+                "X" -> X
+                else -> throw IllegalStateException("Invalid Organ dir: $v")
+            }
+        }
+    }
+
     private val grid: Array<Array<Item>> = Array(height) { Array(width) { Item.SPACE } }
     private val meOrEnemy: Array<Array<MeOrEnemy>> =
         Array(height) { Array(width) { MeOrEnemy.UNKNOWN } }
     private val organIds: Array<Array<Int>> = Array(height) { Array(width) { -1 } }
     private val organRootIds: Array<Array<Int>> = Array(height) { Array(width) { -1 } }
+    private val organParentIds: Array<Array<Int>> = Array(height) { Array(width) { -1 } }
+    private val organDirections: Array<Array<OrganDir>> = Array(height) { Array(width) { OrganDir.X } }
 
-    var aStock: Int = 0
+    lateinit var myStock: ProteinStock
+    lateinit var enemyStock: ProteinStock
 
-    fun fill(x: Int, y: Int, type: String, owner: Int, organId: Int, organRootId: Int) {
+    fun fill(x: Int, y: Int, type: String, owner: Int, organId: Int, organRootId: Int, organParentId: Int, organDir: String) {
 
         fun registerOrgan() {
             meOrEnemy[y][x] = MeOrEnemy.byInt(owner)
             organIds[y][x] = organId
             organRootIds[y][x] = organRootId
+            organParentIds[y][x] = organParentId
+            organDirections[y][x] = OrganDir.parseString(organDir)
         }
 
         when (type) {
@@ -102,7 +103,7 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
     fun isEnemy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ENEMY
     fun organId(point: GridPoint): Int = organIds[point.y][point.x]
     fun organRootId(point: GridPoint): Int = organRootIds[point.y][point.x]
-    fun inbound(point: GridPoint) = point.x in 0 until grid[0].size && point.y in 0 until grid.size
+    fun inbound(point: GridPoint) = point.x in 0 until width && point.y in 0 until height
 
     fun neighbours(point: GridPoint): List<GridPoint> {
         val result = mutableListOf<GridPoint>()
@@ -128,101 +129,12 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
 
 }
 
+object Move {
+    val WAIT = "WAIT"
+}
+
 class Logic {
-
     lateinit var desk: Desk
-    lateinit var lameProteinA: GridPoint
-
-    fun GridPoint.getNearestA(): GridPoint? {
-        val queue = ArrayDeque<GridPoint>()
-        queue.add(this)
-        val seen = mutableSetOf<GridPoint>()
-        while (queue.isNotEmpty()) {
-            val current = queue.removeFirst()
-            if (seen.contains(current)) {
-                continue
-            }
-            seen += current
-
-            if (desk.isA(current)) {
-                return current
-            }
-
-            desk.neighbours(current).asSequence().filter { desk.isSpace(it) || desk.isA(it) }.forEach { neighbour ->
-                queue.add(neighbour)
-            }
-
-        }
-        return null
-    }
-
-    fun dist(a: GridPoint, b: GridPoint): Int = abs(a.x - b.x) + abs(a.y - b.y)
-
-    fun minPath(from: GridPoint, to: Set<GridPoint>, filter: (GridPoint) -> Boolean): List<GridPoint>? {
-        val queue = ArrayDeque<List<GridPoint>>()
-        queue.add(listOf(from))
-        val seen = mutableSetOf<GridPoint>()
-        while (queue.isNotEmpty()) {
-            val current = queue.removeFirst()
-            val lastElement = current.last()
-
-            if (seen.contains(lastElement)) {
-                continue
-            }
-            seen += lastElement
-
-            if (to.contains(lastElement)) {
-                return current
-            }
-
-            desk.neighbours(lastElement).asSequence().filter { filter(it)}.forEach { neighbour ->
-                queue.add(current + neighbour)
-            }
-
-        }
-
-        return null
-    }
-
-    fun minPath(from: Sequence<GridPoint>, to: Set<GridPoint>, filter: (GridPoint) -> Boolean): List<List<GridPoint>> {
-        return from.map { minPath(it, to, filter) }.filterNotNull().filter { it.isNotEmpty() }.toList()
-    }
-
-    fun justGrow(currentOrganRootId: Int): String {
-        val pretenders = desk.getMyOrgans(currentOrganRootId).asSequence().filter {
-            desk.neighbours(it).any { desk.isSpace(it) }
-        }.toList()
-
-        if (pretenders.isEmpty()) {
-            return "WAIT"
-        }
-
-        val organFrom = pretenders.random()
-        val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpace(it) }.toList().random()
-        val organId = desk.organId(organFrom)
-        val xTo = next.x
-        val yTo = next.y
-        return "GROW $organId $xTo $yTo BASIC"
-    }
-
-    fun goodForTentacle(): Sequence<GridPoint> = desk.allPoints.asSequence()
-        .filter { desk.isSpace(it) }
-        .filter { space ->
-            val neighbours = desk.neighbours(space)
-            val hasMyOrgan = neighbours.asSequence().any { desk.isOrgan(it) && desk.isMy(it) }
-            val hasEnemyOrgan = neighbours.asSequence().any { desk.isOrgan(it) && desk.isEnemy(it) }
-            hasMyOrgan && hasEnemyOrgan
-        }
-
-    fun sgn(a: Int) : Int = when {
-        a < 0 -> -1
-        a > 0 -> +1
-        else -> 0
-    }
-
-    fun normalizeDirPoint(rawDirPoint: GridPoint): GridPoint {
-        return GridPoint(sgn(rawDirPoint.x), sgn(rawDirPoint.y))
-    }
 
     fun dirCharByDirPoint(dirPos: GridPoint): Char = when(dirPos) {
         Desk.NORTH -> 'N'
@@ -232,151 +144,11 @@ class Logic {
         else -> throw IllegalArgumentException("dirPos $dirPos is not a valid direction")
     }
 
-    fun tentacleFromTo(myOrgan: GridPoint, enemyOrgan: GridPoint, destination: GridPoint): String {
-        val dirPoint = enemyOrgan - destination
-        val destChar = dirCharByDirPoint(dirPoint)
-        val organId = desk.organId(myOrgan)
-        val xTo = destination.x
-        val yTo = destination.y
-        return "GROW $organId $xTo $yTo TENTACLE $destChar"
-    }
-
-    fun basicFromTo(myOrgan: GridPoint, destination: GridPoint): String {
-        val organId = desk.organId(myOrgan)
-        val xTo = destination.x
-        val yTo = destination.y
-        return "GROW $organId $xTo $yTo BASIC"
-    }
-
-    fun pretenderToTentacle(pretender:GridPoint): String {
-        check(desk.isSpace(pretender))
-
-        val myOrgan = desk.neighbours(pretender).firstOrNull { desk.isOrgan(it) && desk.isMy(it) }
-        checkNotNull(myOrgan)
-        val enemyOrgan = desk.neighbours(pretender).firstOrNull { desk.isOrgan(it) && desk.isEnemy(it) }
-        checkNotNull(enemyOrgan)
-
-        return tentacleFromTo(myOrgan, enemyOrgan, pretender)
-    }
-
-    fun pretenderToBasic(pretender:GridPoint): String {
-        check(desk.isSpace(pretender))
-
-        val myOrgan = desk.neighbours(pretender).firstOrNull { desk.isOrgan(it) && desk.isMy(it) }
-        checkNotNull(myOrgan)
-
-        return basicFromTo(myOrgan, pretender)
-    }
-
-    fun justGrowTo(target: GridPoint) : String {
-        val spacePretender = desk.allPoints.asSequence()
-            .filter { desk.isSpace(it) }
-            .filter { space ->
-                val neighbours = desk.neighbours(space)
-                val hasMyOrgan = neighbours.asSequence().any { desk.isOrgan(it) && desk.isMy(it) }
-                hasMyOrgan
-            }.minByOrNull { dist(it, target) }
-        return if (spacePretender == null) {
-            "WAIT"
-        } else {
-            pretenderToBasic(spacePretender)
-        }
-    }
-
-    fun visibleByLineFrom(start: GridPoint) : Set<GridPoint> {
-        val queue = ArrayDeque<GridPoint>()
-        queue.add(start)
-        val seen = mutableSetOf<GridPoint>()
-        while (queue.isNotEmpty()) {
-            val current = queue.removeFirst()
-            if (seen.contains(current)) {
-                continue
-            }
-            seen += current
-
-
-
-            desk.neighbours(current).asSequence()
-                .filter { desk.isSpace(it)}
-                .filter { it.sameLine(start)}
-                .forEach { neighbour ->  queue.add(neighbour) }
-        }
-
-        return seen - start
-    }
-
-    fun moveWood1League(orgNum: Int): String {
-
+    fun move(orgNum: Int): String {
         val currentRoot = desk.getMyRoots().sortedBy { desk.organId(it) }.drop(orgNum).first()
-        val debugOrganId = desk.organId(currentRoot)
         val currentRootOrganId = desk.organRootId(currentRoot)
-        debug("current $debugOrganId is $currentRootOrganId")
-        debug("orgNum = " + orgNum)
-
-        val mySporer = desk.allPoints.firstOrNull { desk.isSporer(it) && desk.isMy(it) }
-
-        if (mySporer == null) {
-            debug("mySporer == null")
-            val targets = desk.allPoints.filter { desk.isA(it) }.flatMap { pointA -> visibleByLineFrom(pointA)}.toSet()
-            val possibleTurns = desk.neighbours(currentRoot)
-
-            val intersect = targets.intersect(possibleTurns)
-            val turnsPretender = intersect.firstOrNull()
-            if (turnsPretender == null) {
-                return "WAIT"
-            }
-
-            val targetA = desk.getProteinA().asSequence().filter { visibleByLineFrom(it).contains(turnsPretender) }.firstOrNull()
-            if (targetA == null) {
-                return "WAIT"
-            }
-            lameProteinA = targetA
-            debug("proa " + targetA)
-
-            val dirPoint = normalizeDirPoint(targetA - turnsPretender)
-            val destChar = dirCharByDirPoint(dirPoint)
-            val organId = desk.organId(currentRoot)
-            val xTo = turnsPretender.x
-            val yTo = turnsPretender.y
-            return "GROW $organId $xTo $yTo SPORER $destChar"
-        } else {
-
-            val myRootsCount = desk.getMyRoots().count()
-            debug("myRootsCount == $myRootsCount")
-            if (myRootsCount == 1) {
-
-                val dir = normalizeDirPoint(lameProteinA - mySporer)
-                val realTarget = lameProteinA - dir - dir
-
-                val organId = desk.organId(mySporer)
-                val xTo = realTarget.x
-                val yTo = realTarget.y
-                return "SPORE $organId $xTo $yTo"
-            } else {
-
-                val myHarb = desk.getMyOrgans(currentRootOrganId).filter { desk.isHarvester(it) }.firstOrNull()
-                if (myHarb == null) {
-
-                    if (orgNum == 0) {
-                        return justGrow(currentRootOrganId)
-                    } else {
-
-                        val dir = normalizeDirPoint(lameProteinA - currentRoot)
-                        val realTarget = lameProteinA - dir
-                        val dirChar = dirCharByDirPoint(dir)
-                        val organId = desk.organId(currentRoot)
-                        val xTo = realTarget.x
-                        val yTo = realTarget.y
-                        return "GROW $organId $xTo $yTo HARVESTER $dirChar"
-                    }
-
-                } else {
-                    return justGrow(currentRootOrganId)
-                }
-
-            }
-        }
-
+        debug("root: $currentRootOrganId")
+        return Move.WAIT
     }
 
 }
@@ -399,7 +171,7 @@ fun main() {
     while (true) {
         val desk = Desk(width, height, allPoints)
         val entityCount = input.nextInt()
-        for (i in 0 until entityCount) {
+        repeat(entityCount) {
             val x = input.nextInt()
             val y = input.nextInt() // grid coordinate
             val type = input.next() // WALL, ROOT, BASIC, TENTACLE, HARVESTER, SPORER, A, B, C, D
@@ -409,18 +181,19 @@ fun main() {
             val organParentId = input.nextInt()
             val organRootId = input.nextInt()
 
-            desk.fill(x, y, type, owner, organId, organRootId)
-
+            desk.fill(x, y, type, owner, organId, organRootId, organParentId, organDir)
         }
+
         val myA = input.nextInt()
-        desk.aStock = myA
         val myB = input.nextInt()
         val myC = input.nextInt()
         val myD = input.nextInt() // your protein stock
+        desk.myStock = ProteinStock(myA, myB, myC, myD)
         val oppA = input.nextInt()
         val oppB = input.nextInt()
         val oppC = input.nextInt()
         val oppD = input.nextInt() // opponent's protein stock
+        desk.enemyStock = ProteinStock(oppA, oppB, oppC, oppD)
         val requiredActionsCount =
             input.nextInt() // your number of organisms, output an action for each one in any order
         //System.err.println(display())
@@ -430,7 +203,7 @@ fun main() {
             // Write an action using println()
             // To debug: System.err.println("Debug messages...");
 
-            val move = logic.moveWood1League(i)
+            val move = logic.move(i)
             println(move)
         }
     }
