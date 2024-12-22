@@ -87,7 +87,7 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
         }
     }
 
-    fun getMyOrgans(): Sequence<GridPoint> = allPoints.asSequence().filter { isOrgan(it) && isMy(it) }
+    fun getMyOrgans(organRootId: Int): Sequence<GridPoint> = allPoints.asSequence().filter { isOrgan(it) && isMy(it) && organRootId(it) == organRootId }
     fun getMyRoots(): Sequence<GridPoint> = allPoints.asSequence().filter { isRoot(it) && isMy(it) }
     fun getEnemyRoots(): Sequence<GridPoint> = allPoints.asSequence().filter { isRoot(it) && isEnemy(it) }
     fun getProteinA(): Sequence<GridPoint> = allPoints.asSequence().filter { isA(it) }
@@ -100,6 +100,7 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
     fun isMy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ME
     fun isEnemy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ENEMY
     fun organId(point: GridPoint): Int = organIds[point.y][point.x]
+    fun organRootId(point: GridPoint): Int = organRootIds[point.y][point.x]
     fun inbound(point: GridPoint) = point.x in 0 until grid[0].size && point.y in 0 until grid.size
 
     fun neighbours(point: GridPoint): List<GridPoint> {
@@ -186,8 +187,8 @@ class Logic {
         return from.map { minPath(it, to, filter) }.filterNotNull().filter { it.isNotEmpty() }.toList()
     }
 
-    fun justGrow(): String {
-        val pretenders = desk.getMyOrgans().asSequence().filter {
+    fun justGrow(currentOrganRootId: Int): String {
+        val pretenders = desk.getMyOrgans(currentOrganRootId).asSequence().filter {
             desk.neighbours(it).any { desk.isSpace(it) }
         }.toList()
 
@@ -305,7 +306,10 @@ class Logic {
 
     fun moveWood1League(orgNum: Int): String {
 
-       val currentRoot = desk.getMyRoots().sortedBy { desk.organId(it) }.drop(orgNum).first()
+        val currentRoot = desk.getMyRoots().sortedBy { desk.organId(it) }.drop(orgNum).first()
+        val debugOrganId = desk.organId(currentRoot)
+        val debugRootOrganId = desk.organRootId(currentRoot)
+        debug("current $debugOrganId is $debugRootOrganId")
 
         val mySporer = desk.allPoints.firstOrNull { desk.isSporer(it) && desk.isMy(it) }
 
