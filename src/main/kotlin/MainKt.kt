@@ -354,7 +354,7 @@ class Logic {
                 return "SPORE $organId $xTo $yTo"
             } else {
 
-                val myHarb = desk.getMyOrgans(currentRootOrganId).filter { desk.isHarvester(it) }
+                val myHarb = desk.getMyOrgans(currentRootOrganId).filter { desk.isHarvester(it) }.firstOrNull()
                 if (myHarb == null) {
 
                     if (orgNum == 0) {
