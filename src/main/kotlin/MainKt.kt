@@ -8,7 +8,7 @@ data class GridPoint(val x: Int, val y: Int) {
     override fun toString(): String = "($x,$y)"
 }
 
-val debugEnabled = true
+val debugEnabled = false
 fun debug(v: String) {
     if (debugEnabled) {
         System.err.println(v)
@@ -129,6 +129,7 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
 class Logic {
 
     lateinit var desk: Desk
+    lateinit var lameProteinA: GridPoint
 
     fun GridPoint.getNearestA(): GridPoint? {
         val queue = ArrayDeque<GridPoint>()
@@ -310,19 +311,15 @@ class Logic {
 
         if (mySporer == null) {
             val targets = desk.allPoints.filter { desk.isA(it) }.flatMap { pointA -> visibleByLineFrom(pointA)}.toSet()
-            debug("t " + targets)
             val possibleTurns = desk.neighbours(currentRoot)
 
             val intersect = targets.intersect(possibleTurns)
-            debug("i " + intersect)
             val turnsPretender = intersect.firstOrNull()
             if (turnsPretender == null) {
                 return "WAIT"
             }
-            debug("p " + turnsPretender)
 
             val targetA = desk.getProteinA().asSequence().filter { visibleByLineFrom(it).contains(turnsPretender) }.firstOrNull()
-            debug("a " + turnsPretender)
             if (targetA == null) {
                 return "WAIT"
             }
@@ -333,9 +330,20 @@ class Logic {
             val xTo = targetA.x
             val yTo = targetA.y
             return "GROW $organId $xTo $yTo SPORER $destChar"
+        } else {
+
+            val myRootsCount = desk.getMyRoots().count()
+            if (myRootsCount == 1) {
+
+                val organId = desk.organId(currentRoot)
+                val xTo = lameProteinA.x
+                val yTo = lameProteinA.y
+                return "SPORE $organId $xTo $yTo"
+            } else {
+                return justGrow()
+            }
         }
 
-       return "WAIT"
     }
 
     fun moveWood2League() : String {
