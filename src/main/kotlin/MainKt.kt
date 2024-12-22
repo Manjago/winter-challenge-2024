@@ -1,16 +1,14 @@
 import java.util.*
 import kotlin.math.abs
-import kotlin.math.sign
 
 data class GridPoint(val x: Int, val y: Int) {
     operator fun plus(other: GridPoint): GridPoint = GridPoint(x + other.x, y + other.y)
     operator fun minus(other: GridPoint): GridPoint = GridPoint(x - other.x, y - other.y)
-    override fun toString(): String {
-        return "($x, $y)"
-    }
+    fun sameLine(other: GridPoint): Boolean = this.x == other.x || y == other.y
+    override fun toString(): String = "($x,$y)"
 }
 
-val debugEnabled = false
+val debugEnabled = true
 fun debug(v: String) {
     if (debugEnabled) {
         System.err.println(v)
@@ -282,8 +280,7 @@ class Logic {
         }
     }
 
-
-    fun visibleFrom(start: GridPoint) : Set<GridPoint> {
+    fun visibleByLineFrom(start: GridPoint) : Set<GridPoint> {
         val queue = ArrayDeque<GridPoint>()
         queue.add(start)
         val seen = mutableSetOf<GridPoint>()
@@ -294,9 +291,12 @@ class Logic {
             }
             seen += current
 
-            desk.neighbours(current).asSequence().filter { desk.isSpace(it)}.forEach { neighbour ->
-                queue.add(neighbour)
-            }
+
+
+            desk.neighbours(current).asSequence()
+                .filter { desk.isSpace(it)}
+                .filter { it.sameLine(start)}
+                .forEach { neighbour ->  queue.add(neighbour) }
         }
 
         return seen - start
@@ -309,15 +309,20 @@ class Logic {
         val mySporer = desk.allPoints.firstOrNull { desk.isSporer(it) && desk.isMy(it) }
 
         if (mySporer == null) {
-            val targets = desk.allPoints.filter { desk.isA(it) }.flatMap { pointA -> visibleFrom(pointA)}.toSet()
+            val targets = desk.allPoints.filter { desk.isA(it) }.flatMap { pointA -> visibleByLineFrom(pointA)}.toSet()
+            debug("t " + targets)
             val possibleTurns = desk.neighbours(currentRoot)
 
-            val turnsPretender = targets.intersect(possibleTurns).firstOrNull()
+            val intersect = targets.intersect(possibleTurns)
+            debug("i " + intersect)
+            val turnsPretender = intersect.firstOrNull()
             if (turnsPretender == null) {
                 return "WAIT"
             }
+            debug("p " + turnsPretender)
 
-            val targetA = desk.getProteinA().asSequence().filter { visibleFrom(it).contains(turnsPretender) }.firstOrNull()
+            val targetA = desk.getProteinA().asSequence().filter { visibleByLineFrom(it).contains(turnsPretender) }.firstOrNull()
+            debug("a " + turnsPretender)
             if (targetA == null) {
                 return "WAIT"
             }
