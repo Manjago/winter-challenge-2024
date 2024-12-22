@@ -332,7 +332,7 @@ class Logic {
             val organId = desk.organId(currentRoot)
             val xTo = targetA.x
             val yTo = targetA.y
-            return "GROW $organId $xTo $yTo SPORE $destChar"
+            return "GROW $organId $xTo $yTo SPORER $destChar"
         }
 
        return "WAIT"
