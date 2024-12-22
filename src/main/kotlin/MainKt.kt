@@ -348,27 +348,10 @@ class Logic {
                 val yTo = lameProteinA.y
                 return "SPORE $organId $xTo $yTo"
             } else {
-                return justGrow()
+                return justGrow(desk.organRootId(currentRoot))
             }
         }
 
-    }
-
-    fun moveWood2League() : String {
-        val primaryTarget = desk.getEnemyRoots().firstOrNull()
-        if (primaryTarget == null) {
-            return justGrow()
-        }
-
-        val tenPretenders = goodForTentacle().toList()
-        if (tenPretenders.isNotEmpty()) {
-            val tentacle = tenPretenders.asSequence().minByOrNull{
-                dist(it, primaryTarget)
-            }
-            return pretenderToTentacle(tentacle!!)
-        }
-
-        return justGrowTo(primaryTarget)
     }
 
 }
