@@ -97,6 +97,7 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
     fun isOrgan(point: GridPoint): Boolean = grid[point.y][point.x] == Item.ROOT || grid[point.y][point.x] == Item.BASIC || grid[point.y][point.x] == Item.HARVESTER || grid[point.y][point.x] == Item.TENTACLE || grid[point.y][point.x] == Item.SPORER
     fun isRoot(point: GridPoint): Boolean = grid[point.y][point.x] == Item.ROOT
     fun isSporer(point: GridPoint): Boolean = grid[point.y][point.x] == Item.SPORER
+    fun isHarvester(point: GridPoint): Boolean = grid[point.y][point.x] == Item.HARVESTER
     fun isMy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ME
     fun isEnemy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ENEMY
     fun organId(point: GridPoint): Int = organIds[point.y][point.x]
@@ -308,8 +309,8 @@ class Logic {
 
         val currentRoot = desk.getMyRoots().sortedBy { desk.organId(it) }.drop(orgNum).first()
         val debugOrganId = desk.organId(currentRoot)
-        val debugRootOrganId = desk.organRootId(currentRoot)
-        debug("current $debugOrganId is $debugRootOrganId")
+        val currentRootOrganId = desk.organRootId(currentRoot)
+        debug("current $debugOrganId is $currentRootOrganId")
 
         val mySporer = desk.allPoints.firstOrNull { desk.isSporer(it) && desk.isMy(it) }
 
@@ -351,7 +352,27 @@ class Logic {
                 val yTo = realTarget.y
                 return "SPORE $organId $xTo $yTo"
             } else {
-                return justGrow(desk.organRootId(currentRoot))
+
+                val myHarb = desk.getMyOrgans(currentRootOrganId).filter { desk.isHarvester(it) }
+                if (myHarb == null) {
+
+                    if (orgNum == 0) {
+                        return justGrow(currentRootOrganId)
+                    } else {
+
+                        val dir = normalizeDirPoint(lameProteinA - currentRoot)
+                        val realTarget = lameProteinA - dir
+                        val dirChar = dirCharByDirPoint(dir)
+                        val organId = desk.organId(currentRoot)
+                        val xTo = realTarget.x
+                        val yTo = realTarget.y
+                        return "GROW $organId $xTo $yTo HARVESTER $dirChar"
+                    }
+
+                } else {
+                    return justGrow(currentRootOrganId)
+                }
+
             }
         }
 
