@@ -330,8 +330,8 @@ class Logic {
             val dirPoint = normalizeDirPoint(targetA - turnsPretender)
             val destChar = dirCharByDirPoint(dirPoint)
             val organId = desk.organId(currentRoot)
-            val xTo = targetA.x
-            val yTo = targetA.y
+            val xTo = turnsPretender.x
+            val yTo = turnsPretender.y
             return "GROW $organId $xTo $yTo SPORER $destChar"
         } else {
 
