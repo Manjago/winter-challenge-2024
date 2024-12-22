@@ -1,8 +1,10 @@
 import java.util.*
+import javax.lang.model.util.Elements
 import kotlin.math.abs
 
 data class GridPoint(val x: Int, val y: Int) {
     operator fun plus(other: GridPoint): GridPoint = GridPoint(x + other.x, y + other.y)
+    operator fun minus(other: GridPoint): GridPoint = GridPoint(x - other.x, y - other.y)
     override fun toString(): String {
         return "($x, $y)"
     }
@@ -27,6 +29,7 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
             Item.BASIC -> if (meOrEnemy == MeOrEnemy.ME) '+' else '*'
             Item.A -> 'A'
             Item.HARVESTER -> if (meOrEnemy == MeOrEnemy.ME) 'H' else 'h'
+            Item.TENTACLE -> if (meOrEnemy == MeOrEnemy.ME) 'T' else 't'
         }
     }
 
@@ -43,7 +46,7 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
 
 
     private enum class Item {
-        SPACE, WALL, ROOT, BASIC, A, HARVESTER
+        SPACE, WALL, ROOT, BASIC, A, HARVESTER, TENTACLE
     }
 
     private enum class MeOrEnemy {
@@ -77,17 +80,21 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
             "ROOT" -> grid[y][x] = Item.ROOT.also { registerOrgan() }
             "BASIC" -> grid[y][x] = Item.BASIC.also { registerOrgan() }
             "HARVESTER" -> grid[y][x] = Item.HARVESTER.also { registerOrgan() }
+            "TENTACLE" -> grid[y][x] = Item.TENTACLE.also { registerOrgan() }
             "A" -> grid[y][x] = Item.A
         }
     }
 
     fun getMyOrgans(): Sequence<GridPoint> = allPoints.asSequence().filter { isOrgan(it) && isMy(it) }
+    fun getEnemyRoot(): Sequence<GridPoint> = allPoints.asSequence().filter { isRoot(it) && isEnemy(it) }
     fun getProteinA(): Sequence<GridPoint> = allPoints.asSequence().filter { isA(it) }
 
     fun isA(point: GridPoint): Boolean = inbound(point) && grid[point.y][point.x] == Item.A
     fun isSpace(point: GridPoint): Boolean = grid[point.y][point.x] == Item.SPACE
-    fun isOrgan(point: GridPoint): Boolean = grid[point.y][point.x] == Item.ROOT || grid[point.y][point.x] == Item.BASIC || grid[point.y][point.x] == Item.HARVESTER
+    fun isOrgan(point: GridPoint): Boolean = grid[point.y][point.x] == Item.ROOT || grid[point.y][point.x] == Item.BASIC || grid[point.y][point.x] == Item.HARVESTER || grid[point.y][point.x] == Item.TENTACLE
+    fun isRoot(point: GridPoint): Boolean = grid[point.y][point.x] == Item.ROOT
     fun isMy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ME
+    fun isEnemy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ENEMY
     fun organId(point: GridPoint): Int = organIds[point.y][point.x]
     fun inbound(point: GridPoint) = point.x in 0 until grid[0].size && point.y in 0 until grid.size
 
@@ -118,12 +125,6 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
 class Logic {
 
     lateinit var desk: Desk
-
-    enum class State {
-        PREPARE_HARV, JUST_GROW
-    }
-    var state = State.PREPARE_HARV
-    var harv: GridPoint? = null
 
     fun GridPoint.getNearestA(): GridPoint? {
         val queue = ArrayDeque<GridPoint>()
@@ -180,56 +181,106 @@ class Logic {
         return from.map { minPath(it, to, filter) }.filterNotNull().filter { it.isNotEmpty() }.toList()
     }
 
-    fun moveWood3League(): String {
+    fun justGrow(): String {
+        val pretenders = desk.getMyOrgans().asSequence().filter {
+            desk.neighbours(it).any { desk.isSpace(it) }
+        }.toList()
 
-        when (state) {
-            State.PREPARE_HARV -> {
-                val myOrgans = desk.getMyOrgans()
-                val aNeighbours = desk.getProteinA().asSequence().flatMap { desk.neighbours(it) }.filter { desk.isSpace(it) }.toSet()
-                val pathToHarv: List<GridPoint>? = minPath(myOrgans, aNeighbours, desk::isSpace).minByOrNull { it.size }
-                if (pathToHarv == null) {
-                    return "WAIT"
-                }
-
-                val from = pathToHarv.first()
-                val organId = desk.organId(from)
-                val to = pathToHarv[1]
-                val xTo = to.x
-                val yTo = to.y
-                return if (aNeighbours.contains(to)) {
-                    harv = to
-                    when {
-                        desk.isA(to + Desk.NORTH) -> "GROW $organId $xTo $yTo HARVESTER N".also { state = State.JUST_GROW}
-                        desk.isA(to + Desk.EAST) -> "GROW $organId $xTo $yTo HARVESTER E".also { state = State.JUST_GROW }
-                        desk.isA(to + Desk.WEST) -> "GROW $organId $xTo $yTo HARVESTER W".also { state = State.JUST_GROW }
-                        desk.isA(to + Desk.SOUTH) -> "GROW $organId $xTo $yTo HARVESTER S".also { state = State.JUST_GROW }
-                        else -> throw IllegalStateException("Where my A?")
-                    }
-                } else {
-                    "GROW $organId $xTo $yTo BASIC"
-                }
-            }
-            State.JUST_GROW -> {
-
-                val pretenders = desk.getMyOrgans().asSequence().filter {
-                    desk.neighbours(it).any { desk.isSpace(it) }
-                }.toList()
-
-                if (pretenders.isEmpty()) {
-                    return "WAIT"
-                }
-
-                val organFrom = pretenders.random()
-                val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpace(it) }.toList().random()
-                val organId = desk.organId(organFrom)
-                val xTo = next.x
-                val yTo = next.y
-                return "GROW $organId $xTo $yTo BASIC"
-            }
+        if (pretenders.isEmpty()) {
+            return "WAIT"
         }
 
+        val organFrom = pretenders.random()
+        val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpace(it) }.toList().random()
+        val organId = desk.organId(organFrom)
+        val xTo = next.x
+        val yTo = next.y
+        return "GROW $organId $xTo $yTo BASIC"
+    }
 
-        return "WAIT"
+    fun goodForTentacle(): Sequence<GridPoint> = desk.allPoints.asSequence()
+        .filter { desk.isSpace(it) }
+        .filter { space ->
+            val neighbours = desk.neighbours(space)
+            val hasMyOrgan = neighbours.asSequence().any { desk.isOrgan(it) && desk.isMy(it) }
+            val hasEnemyOrgan = neighbours.asSequence().any { desk.isOrgan(it) && desk.isEnemy(it) }
+            hasMyOrgan && hasEnemyOrgan
+        }
+
+    fun dirCharByDirPoint(dirPos: GridPoint): Char = when(dirPos) {
+        Desk.NORTH -> 'N'
+        Desk.EAST -> 'E'
+        Desk.SOUTH -> 'S'
+        Desk.WEST -> 'W'
+        else -> throw IllegalArgumentException("dirPos $dirPos is not a valid direction")
+    }
+
+    fun tentacleFromTo(myOrgan: GridPoint, enemyOrgan: GridPoint, destination: GridPoint): String {
+        val dirPoint = enemyOrgan - destination
+        val destChar = dirCharByDirPoint(dirPoint)
+        val organId = desk.organId(myOrgan)
+        val xTo = destination.x
+        val yTo = destination.y
+        return "GROW $organId $xTo $yTo TENTACLE $destChar"
+    }
+
+    fun basicFromTo(myOrgan: GridPoint, destination: GridPoint): String {
+        val organId = desk.organId(myOrgan)
+        val xTo = destination.x
+        val yTo = destination.y
+        return "GROW $organId $xTo $yTo BASIC"
+    }
+
+    fun pretenderToTentacle(pretender:GridPoint): String {
+        check(desk.isSpace(pretender))
+
+        val myOrgan = desk.neighbours(pretender).firstOrNull { desk.isOrgan(it) && desk.isMy(it) }
+        checkNotNull(myOrgan)
+        val enemyOrgan = desk.neighbours(pretender).firstOrNull { desk.isOrgan(it) && desk.isEnemy(it) }
+        checkNotNull(enemyOrgan)
+
+        return tentacleFromTo(myOrgan, enemyOrgan, pretender)
+    }
+
+    fun pretenderToBasic(pretender:GridPoint): String {
+        check(desk.isSpace(pretender))
+
+        val myOrgan = desk.neighbours(pretender).firstOrNull { desk.isOrgan(it) && desk.isMy(it) }
+        checkNotNull(myOrgan)
+
+        return basicFromTo(myOrgan, pretender)
+    }
+
+    fun justGrowTo(target: GridPoint) : String {
+        val spacePretender = desk.allPoints.asSequence()
+            .filter { desk.isSpace(it) }
+            .filter { space ->
+                val neighbours = desk.neighbours(space)
+                val hasMyOrgan = neighbours.asSequence().any { desk.isOrgan(it) && desk.isMy(it) }
+                hasMyOrgan
+            }.minByOrNull { dist(it, target) }
+        return if (spacePretender == null) {
+            "WAIT"
+        } else {
+            pretenderToBasic(spacePretender)
+        }
+    }
+
+    fun moveWood2League() : String {
+        val primaryTarget = desk.getEnemyRoot().firstOrNull()
+        if (primaryTarget == null) {
+            return justGrow()
+        }
+
+        val tenPretenders = goodForTentacle().toList()
+        if (tenPretenders.isNotEmpty()) {
+            val tentacle = tenPretenders.asSequence().minByOrNull{
+                dist(it, primaryTarget)
+            }
+            return pretenderToTentacle(tentacle!!)
+        }
+
+        return justGrowTo(primaryTarget)
     }
 
 }
@@ -283,7 +334,7 @@ fun main() {
             // Write an action using println()
             // To debug: System.err.println("Debug messages...");
 
-            val move = logic.moveWood3League()
+            val move = logic.moveWood2League()
             println(move)
         }
     }
