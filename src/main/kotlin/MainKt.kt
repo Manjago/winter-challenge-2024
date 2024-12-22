@@ -82,7 +82,7 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
             "BASIC" -> grid[y][x] = Item.BASIC.also { registerOrgan() }
             "HARVESTER" -> grid[y][x] = Item.HARVESTER.also { registerOrgan() }
             "TENTACLE" -> grid[y][x] = Item.TENTACLE.also { registerOrgan() }
-            "SPORER" -> grid[y][x] = Item.TENTACLE.also { registerOrgan() }
+            "SPORER" -> grid[y][x] = Item.SPORER.also { registerOrgan() }
             "A" -> grid[y][x] = Item.A
         }
     }
