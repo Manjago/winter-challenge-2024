@@ -311,6 +311,7 @@ class Logic {
         val debugOrganId = desk.organId(currentRoot)
         val currentRootOrganId = desk.organRootId(currentRoot)
         debug("current $debugOrganId is $currentRootOrganId")
+        debug("orgNum = " + orgNum)
 
         val mySporer = desk.allPoints.firstOrNull { desk.isSporer(it) && desk.isMy(it) }
 
