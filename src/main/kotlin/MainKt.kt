@@ -343,9 +343,12 @@ class Logic {
             debug("myRootsCount == $myRootsCount")
             if (myRootsCount == 1) {
 
+                val dir = normalizeDirPoint(lameProteinA - mySporer)
+                val realTarget = lameProteinA - dir - dir
+
                 val organId = desk.organId(mySporer)
-                val xTo = lameProteinA.x
-                val yTo = lameProteinA.y
+                val xTo = realTarget.x
+                val yTo = realTarget.y
                 return "SPORE $organId $xTo $yTo"
             } else {
                 return justGrow(desk.organRootId(currentRoot))
