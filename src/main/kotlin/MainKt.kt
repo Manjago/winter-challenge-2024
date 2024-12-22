@@ -29,7 +29,7 @@ data class ProteinStock(val a: Int, val b: Int, val c: Int, val d: Int)
 class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
 
     private enum class Item {
-        SPACE, WALL, ROOT, BASIC, A, HARVESTER, TENTACLE, SPORER
+        SPACE, WALL, ROOT, BASIC, A, B, C, D, HARVESTER, TENTACLE, SPORER
     }
 
     private enum class MeOrEnemy {
@@ -87,6 +87,10 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
             "TENTACLE" -> grid[y][x] = Item.TENTACLE.also { registerOrgan() }
             "SPORER" -> grid[y][x] = Item.SPORER.also { registerOrgan() }
             "A" -> grid[y][x] = Item.A
+            "B" -> grid[y][x] = Item.B
+            "C" -> grid[y][x] = Item.C
+            "D" -> grid[y][x] = Item.D
+            else -> throw IllegalStateException("Invalid type: $type")
         }
     }
 
