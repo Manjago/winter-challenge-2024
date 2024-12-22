@@ -401,7 +401,7 @@ fun main() {
             // Write an action using println()
             // To debug: System.err.println("Debug messages...");
 
-            val move = logic.moveWood2League()
+            val move = logic.moveWood1League(i)
             println(move)
         }
     }
