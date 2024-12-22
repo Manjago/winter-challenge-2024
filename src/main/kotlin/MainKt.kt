@@ -324,6 +324,8 @@ class Logic {
             if (targetA == null) {
                 return "WAIT"
             }
+            lameProteinA = targetA
+            debug("proa " + targetA)
 
             val dirPoint = normalizeDirPoint(targetA - turnsPretender)
             val destChar = dirCharByDirPoint(dirPoint)
