@@ -8,7 +8,7 @@ data class GridPoint(val x: Int, val y: Int) {
     override fun toString(): String = "($x,$y)"
 }
 
-val debugEnabled = false
+val debugEnabled = true
 fun debug(v: String) {
     if (debugEnabled) {
         System.err.println(v)
@@ -310,6 +310,7 @@ class Logic {
         val mySporer = desk.allPoints.firstOrNull { desk.isSporer(it) && desk.isMy(it) }
 
         if (mySporer == null) {
+            debug("mySporer == null")
             val targets = desk.allPoints.filter { desk.isA(it) }.flatMap { pointA -> visibleByLineFrom(pointA)}.toSet()
             val possibleTurns = desk.neighbours(currentRoot)
 
@@ -333,9 +334,10 @@ class Logic {
         } else {
 
             val myRootsCount = desk.getMyRoots().count()
+            debug("myRootsCount == $myRootsCount")
             if (myRootsCount == 1) {
 
-                val organId = desk.organId(currentRoot)
+                val organId = desk.organId(mySporer)
                 val xTo = lameProteinA.x
                 val yTo = lameProteinA.y
                 return "SPORE $organId $xTo $yTo"
