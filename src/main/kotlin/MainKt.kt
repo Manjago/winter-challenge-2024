@@ -264,11 +264,18 @@ class Action {
         log("found 'a' path " + minPath)
 
         // organ -  ...   - pretender
-        val fromOrgan = minPath.first()
-        val pretender = minPath.last()
-        val aSource = desk.neighbours(pretender).asSequence().filter { desk.isA(it) }.first()
+        // or
+        // organ -  pretender
 
-        return Move.growHarvester(fromOrgan, pretender, aSource)
+        if (minPath.size == 2) {
+            val fromOrgan = minPath.first()
+            val pretender = minPath.last()
+            val aSource = desk.neighbours(pretender).asSequence().filter { desk.isA(it) }.first()
+            return Move.growHarvester(fromOrgan, pretender, aSource)
+        } else {
+            return Move.growBasic(minPath.first(), minPath[1])
+        }
+
     }
     fun doTentacles(): String {
         //todo
