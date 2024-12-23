@@ -22,7 +22,7 @@ fun normalizeDirPoint(rawDirPoint: GridPoint): GridPoint {
     return GridPoint(sgn(rawDirPoint.x), sgn(rawDirPoint.y))
 }
 
-fun debug(v: String) = System.err.println(v)
+fun log(v: String) = System.err.println(v)
 
 data class ProteinStock(val a: Int, val b: Int, val c: Int, val d: Int)
 
@@ -137,6 +137,12 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
 
 object Move {
     val WAIT = "WAIT"
+    fun growBasic(organFrom: GridPoint, growTo: GridPoint): String {
+        val organId = desk.organId(organFrom)
+        val xTo = growTo.x
+        val yTo = growTo.y
+        return "GROW $organId $xTo $yTo BASIC"
+    }
     private fun dirCharByDirPoint(dirPos: GridPoint): Char = when(dirPos) {
         Desk.NORTH -> 'N'
         Desk.EAST -> 'E'
@@ -174,9 +180,19 @@ class Action {
         //todo
         return Move.WAIT
     }
-    fun justGrow(): String {
-        //todo
-        return Move.WAIT
+
+    fun justGrow(currentOrganRootId: Int): String {
+        val pretenders = desk.getMyOrgans(currentOrganRootId).asSequence().filter {
+            desk.neighbours(it).any { desk.isSpace(it) }
+        }.toList()
+
+        if (pretenders.isEmpty()) {
+            return "WAIT"
+        }
+
+        val organFrom = pretenders.random()
+        val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpace(it) }.toList().random()
+        return Move.growBasic(organFrom, next).also { log("justGrow") }
     }
 }
 
@@ -188,13 +204,13 @@ class Logic {
     fun move(orgNum: Int): String {
         val currentRoot = desk.getMyRoots().sortedBy { desk.organId(it) }.drop(orgNum).first()
         val currentRootOrganId = desk.organRootId(currentRoot)
-        debug("root: $currentRootOrganId")
+        log("root: $currentRootOrganId")
 
         return when {
             sensor.isNeedTentacles() -> action.doTentacles()
             sensor.isMaySpore() -> action.doSpore()
             sensor.isNeedResources() -> action.obtainResources()
-            else -> action.justGrow()
+            else -> action.justGrow(currentRootOrganId)
         }
 
     }
@@ -202,6 +218,7 @@ class Logic {
 }
 
 fun main() {
+    val start = System.currentTimeMillis()
     val logic = Logic()
     val input = Scanner(System.`in`)
     val width = input.nextInt() // columns in the game grid
@@ -214,9 +231,12 @@ fun main() {
             allPoints.add(GridPoint(x, y))
         }
     }
+    val initialLoad = System.currentTimeMillis()
+    log("Initial ${initialLoad - start} ms")
 
     // game loop
     while (true) {
+        val loopStart = System.currentTimeMillis()
         desk = Desk(width, height, allPoints)
         val entityCount = input.nextInt()
         repeat(entityCount) {
@@ -253,6 +273,8 @@ fun main() {
             val move = logic.move(i)
             println(move)
         }
+        val loopStop = System.currentTimeMillis()
+        log("In loop ${loopStop - loopStart} ms")
     }
 }
 
