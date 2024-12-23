@@ -24,13 +24,29 @@ fun normalizeDirPoint(rawDirPoint: GridPoint): GridPoint {
 
 fun log(v: String) = System.err.println(v)
 
-data class ProteinStock(val a: Int, val b: Int, val c: Int, val d: Int)
+data class ProteinStock(val a: Int, val b: Int, val c: Int, val d: Int) {
+    fun enoughFor(other: ProteinStock): Boolean {
+       val diff = this - other
+       return diff.notNegative()
+    }
+    fun notNegative(): Boolean = a>=0 && b>=0 && c>=0 && d >= 0
+    operator fun minus(other: ProteinStock): ProteinStock {
+        return ProteinStock(a - other.a, b - other.b, c - other.c, d - other.d)
+    }
+    companion object {
+        val ROOT = ProteinStock(1, 1, 1, 1)
+        val BASIC = ProteinStock(1, 0, 0, 0)
+        val HARVESTER = ProteinStock(0, 0, 1, 1)
+        val TENTACLE = ProteinStock(0, 1, 1, 0)
+        val SPORER = ProteinStock(0, 1, 0, 1)
+    }
+}
+
+enum class Item {
+    SPACE, WALL, ROOT, BASIC, A, B, C, D, HARVESTER, TENTACLE, SPORER
+}
 
 class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
-
-    private enum class Item {
-        SPACE, WALL, ROOT, BASIC, A, B, C, D, HARVESTER, TENTACLE, SPORER
-    }
 
     private enum class MeOrEnemy {
         UNKNOWN, ME, ENEMY;
@@ -94,7 +110,7 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
         }
     }
 
-    fun getMyOrgans(organRootId: Int): Sequence<GridPoint> = allPoints.asSequence().filter { isOrgan(it) && isMy(it) && organRootId(it) == organRootId }
+    fun getMyOrgans(organRootId: Int): Sequence<GridPoint> = allPoints.asSequence().filter { isOrgan(it) && isReallyMy(it, organRootId)}
     fun getMyRoots(): Sequence<GridPoint> = allPoints.asSequence().filter { isRoot(it) && isMy(it) }
     fun getEnemyRoots(): Sequence<GridPoint> = allPoints.asSequence().filter { isRoot(it) && isEnemy(it) }
     fun getProteinA(): Sequence<GridPoint> = allPoints.asSequence().filter { isA(it) }
@@ -105,7 +121,8 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
     fun isRoot(point: GridPoint): Boolean = grid[point.y][point.x] == Item.ROOT
     fun isSporer(point: GridPoint): Boolean = grid[point.y][point.x] == Item.SPORER
     fun isHarvester(point: GridPoint): Boolean = grid[point.y][point.x] == Item.HARVESTER
-    fun isMy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ME
+    private fun isMy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ME
+    fun isReallyMy(point: GridPoint, organRootId: Int): Boolean = isMy(point) && organRootId == organRootId(point)
     fun isEnemy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ENEMY
     fun organId(point: GridPoint): Int = organIds[point.y][point.x]
     fun organRootId(point: GridPoint): Int = organRootIds[point.y][point.x]
@@ -143,12 +160,54 @@ object Move {
         val yTo = growTo.y
         return "GROW $organId $xTo $yTo BASIC"
     }
+
+    fun growHarvester(organFrom: GridPoint, growTo: GridPoint, forSource: GridPoint): String {
+        val dir = normalizeDirPoint(forSource - growTo)
+        val dirChar = dirCharByDirPoint(dir)
+        val organId = desk.organId(organFrom)
+        val xTo = growTo.x
+        val yTo = growTo.y
+        return "GROW $organId $xTo $yTo HARVESTER $dirChar"
+    }
+
     private fun dirCharByDirPoint(dirPos: GridPoint): Char = when(dirPos) {
         Desk.NORTH -> 'N'
         Desk.EAST -> 'E'
         Desk.SOUTH -> 'S'
         Desk.WEST -> 'W'
         else -> throw IllegalArgumentException("dirPos $dirPos is not a valid direction")
+    }
+}
+
+object Path {
+    fun minPath(from: GridPoint, to: Set<GridPoint>, filter: (GridPoint) -> Boolean): List<GridPoint>? {
+        val queue = ArrayDeque<List<GridPoint>>()
+        queue.add(listOf(from))
+        val seen = mutableSetOf<GridPoint>()
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            val lastElement = current.last()
+
+            if (seen.contains(lastElement)) {
+                continue
+            }
+            seen += lastElement
+
+            if (to.contains(lastElement)) {
+                return current
+            }
+
+            desk.neighbours(lastElement).asSequence().filter { filter(it)}.forEach { neighbour ->
+                queue.add(current + neighbour)
+            }
+
+        }
+
+        return null
+    }
+
+    fun minPathSeq(from: Sequence<GridPoint>, to: Set<GridPoint>, filter: (GridPoint) -> Boolean): List<List<GridPoint>> {
+        return from.map { minPath(it, to, filter) }.filterNotNull().filter { it.isNotEmpty() }.toList()
     }
 }
 
@@ -165,9 +224,48 @@ class Sensor {
         //todo
         return false
     }
+    fun isNeedProteinASource(currentRootOrganId: Int): Boolean {
+
+        val hasActiveHarvA = desk.allPoints.asSequence()
+            .filter { desk.isHarvester(it) && desk.isReallyMy(it, currentRootOrganId) }
+            .filter { desk.neighbours(it).any { desk.isA(it) } }
+            .any()
+
+        if (hasActiveHarvA) {
+            return false
+        }
+
+        if (!desk.myStock.enoughFor( ProteinStock.HARVESTER )) {
+            log("no harv!")
+            return false
+        }
+
+        return true
+    }
 }
 
 class Action {
+    fun doHarvForA(currentRootOrganId: Int): String {
+        //todo
+        val allA = desk.allPoints.asSequence()
+            .filter { desk.isA(it) }.toSet()
+
+        val myOrgans = desk.getMyOrgans(currentRootOrganId)
+
+        val paths = Path.minPathSeq(myOrgans, allA, desk::isSpace).filter { it.size <= 3 }
+        if (paths.isEmpty()) {
+            log("not 'a' path")
+            return Move.WAIT
+        }
+
+        val minPath = paths.minBy { it.size }
+        // organ -  ...   - pretender - a
+        val fromOrgan = minPath.first()
+        val beforeLastIndex = minPath.size - 2
+        val pretender = minPath[beforeLastIndex]
+
+        return Move.growHarvester(fromOrgan, pretender, minPath.last())
+    }
     fun doTentacles(): String {
         //todo
         return Move.WAIT
@@ -207,6 +305,7 @@ class Logic {
         log("root: $currentRootOrganId")
 
         return when {
+            sensor.isNeedProteinASource(currentRootOrganId) -> action.doHarvForA(currentRootOrganId)
             sensor.isNeedTentacles() -> action.doTentacles()
             sensor.isMaySpore() -> action.doSpore()
             sensor.isNeedResources() -> action.obtainResources()
