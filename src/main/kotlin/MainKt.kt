@@ -247,18 +247,22 @@ class Sensor {
 class Action {
     fun doHarvForA(currentRootOrganId: Int): String {
         //todo
-        val allA = desk.allPoints.asSequence()
-            .filter { desk.isA(it) }.toSet()
+        val allAPretenders = desk.allPoints.asSequence()
+            .filter { desk.isA(it) }
+            .flatMap { desk.neighbours(it).filter { desk.isSpace(it) }.asSequence() }
+            .toSet()
 
         val myOrgans = desk.getMyOrgans(currentRootOrganId)
 
-        val paths = Path.minPathSeq(myOrgans, allA, desk::isSpace).filter { it.size <= 3 }
+        val paths = Path.minPathSeq(myOrgans, allAPretenders, desk::isSpace).filter { it.size <= 3 }
         if (paths.isEmpty()) {
             log("not 'a' path")
             return Move.WAIT
         }
 
         val minPath = paths.minBy { it.size }
+        log("found 'a' path " + minPath)
+
         // organ -  ...   - pretender - a
         val fromOrgan = minPath.first()
         val beforeLastIndex = minPath.size - 2
