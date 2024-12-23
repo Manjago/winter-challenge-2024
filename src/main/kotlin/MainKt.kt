@@ -116,9 +116,9 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
     fun getProteinA(): Sequence<GridPoint> = allPoints.asSequence().filter { isA(it) }
 
     fun isA(point: GridPoint): Boolean = inbound(point) && grid[point.y][point.x] == Item.A
-    fun isB(point: GridPoint): Boolean = inbound(point) && grid[point.y][point.x] == Item.A
-    fun isC(point: GridPoint): Boolean = inbound(point) && grid[point.y][point.x] == Item.A
-    fun isD(point: GridPoint): Boolean = inbound(point) && grid[point.y][point.x] == Item.A
+    fun isB(point: GridPoint): Boolean = inbound(point) && grid[point.y][point.x] == Item.B
+    fun isC(point: GridPoint): Boolean = inbound(point) && grid[point.y][point.x] == Item.C
+    fun isD(point: GridPoint): Boolean = inbound(point) && grid[point.y][point.x] == Item.D
     fun isSpace(point: GridPoint): Boolean = grid[point.y][point.x] == Item.SPACE
     fun isSpaceOrProteinNotA(point: GridPoint): Boolean = desk.isSpace(point) || desk.isB(point) || desk.isC(point) || desk.isD(point)
     fun isOrgan(point: GridPoint): Boolean = grid[point.y][point.x] == Item.ROOT || grid[point.y][point.x] == Item.BASIC || grid[point.y][point.x] == Item.HARVESTER || grid[point.y][point.x] == Item.TENTACLE || grid[point.y][point.x] == Item.SPORER
