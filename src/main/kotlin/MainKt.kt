@@ -116,6 +116,9 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
     fun getProteinA(): Sequence<GridPoint> = allPoints.asSequence().filter { isA(it) }
 
     fun isA(point: GridPoint): Boolean = inbound(point) && grid[point.y][point.x] == Item.A
+    fun isB(point: GridPoint): Boolean = inbound(point) && grid[point.y][point.x] == Item.A
+    fun isC(point: GridPoint): Boolean = inbound(point) && grid[point.y][point.x] == Item.A
+    fun isD(point: GridPoint): Boolean = inbound(point) && grid[point.y][point.x] == Item.A
     fun isSpace(point: GridPoint): Boolean = grid[point.y][point.x] == Item.SPACE
     fun isOrgan(point: GridPoint): Boolean = grid[point.y][point.x] == Item.ROOT || grid[point.y][point.x] == Item.BASIC || grid[point.y][point.x] == Item.HARVESTER || grid[point.y][point.x] == Item.TENTACLE || grid[point.y][point.x] == Item.SPORER
     fun isRoot(point: GridPoint): Boolean = grid[point.y][point.x] == Item.ROOT
@@ -290,9 +293,9 @@ class Action {
         return Move.WAIT
     }
 
-    fun justGrow(currentOrganRootId: Int): String {
+    fun justAggressiveGrow(currentOrganRootId: Int): String {
         val pretenders = desk.getMyOrgans(currentOrganRootId).asSequence().filter {
-            desk.neighbours(it).any { desk.isSpace(it) }
+            desk.neighbours(it).any { desk.isSpace(it) || desk.isB(it) || desk.isC(it) || desk.isD(it)}
         }.toList()
 
         if (pretenders.isEmpty()) {
@@ -320,7 +323,7 @@ class Logic {
             sensor.isNeedTentacles() -> action.doTentacles()
             sensor.isMaySpore() -> action.doSpore()
             sensor.isNeedResources() -> action.obtainResources()
-            else -> action.justGrow(currentRootOrganId)
+            else -> action.justAggressiveGrow(currentRootOrganId)
         }
 
     }
