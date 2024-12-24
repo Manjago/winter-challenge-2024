@@ -278,7 +278,7 @@ class Action {
 
         val myOrgans = desk.getMyOrgans(currentRootOrganId)
 
-        val paths = Path.minPathSeq(myOrgans, allAPretenders, desk::isSpace)
+        val paths = Path.minPathSeq(myOrgans, allAPretenders, desk::isSpaceOrProteinNotA)
         if (paths.isEmpty()) {
             log("not 'a' path")
             return Move.WAIT
