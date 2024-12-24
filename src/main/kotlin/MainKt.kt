@@ -121,11 +121,12 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
     fun isD(point: GridPoint): Boolean = inbound(point) && grid[point.y][point.x] == Item.D
     fun isSpace(point: GridPoint): Boolean = grid[point.y][point.x] == Item.SPACE
     fun isSpaceOrProteinNotA(point: GridPoint): Boolean = desk.isSpace(point) || desk.isB(point) || desk.isC(point) || desk.isD(point)
+    fun isSpaceOrProtein(point: GridPoint): Boolean = desk.isSpace(point) || desk.isA(point) || desk.isB(point) || desk.isC(point) || desk.isD(point)
     fun isOrgan(point: GridPoint): Boolean = grid[point.y][point.x] == Item.ROOT || grid[point.y][point.x] == Item.BASIC || grid[point.y][point.x] == Item.HARVESTER || grid[point.y][point.x] == Item.TENTACLE || grid[point.y][point.x] == Item.SPORER
     fun isRoot(point: GridPoint): Boolean = grid[point.y][point.x] == Item.ROOT
     fun isSporer(point: GridPoint): Boolean = grid[point.y][point.x] == Item.SPORER
     fun isHarvester(point: GridPoint): Boolean = grid[point.y][point.x] == Item.HARVESTER
-    private fun isMy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ME
+    fun isMy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ME
     fun isReallyMy(point: GridPoint, organRootId: Int): Boolean = isMy(point) && organRootId == organRootId(point)
     fun isEnemy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ENEMY
     fun organId(point: GridPoint): Int = organIds[point.y][point.x]
@@ -300,11 +301,31 @@ class Action {
         }.toList()
 
         if (pretenders.isEmpty()) {
+            log("agressive fail")
             return "WAIT"
         }
 
         val organFrom = pretenders.random()
         val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpaceOrProteinNotA(it)}.toList().random()
+        return Move.growBasic(organFrom, next).also { log("justGrow") }
+    }
+
+    fun justSuperAggressiveGrow(currentOrganRootId: Int): String {
+
+        val aWithMyHarv = desk.allPoints.asSequence().filter { desk.isHarvester(it) && desk.isMy(it) }
+            .flatMap { desk.neighbours(it).filter { desk.isA(it) } }.toSet()
+
+        val pretenders = desk.getMyOrgans(currentOrganRootId).asSequence().filter {
+            desk.neighbours(it).any { desk.isSpaceOrProtein(it) && !aWithMyHarv.contains(it)}
+        }.toList()
+
+        if (pretenders.isEmpty()) {
+            log("super agressive fail")
+            return "WAIT"
+        }
+
+        val organFrom = pretenders.random()
+        val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpaceOrProtein(it) && !aWithMyHarv.contains(it)}.toList().random()
         return Move.growBasic(organFrom, next).also { log("justGrow") }
     }
 }
@@ -324,7 +345,13 @@ class Logic {
             sensor.isNeedTentacles() -> action.doTentacles()
             sensor.isMaySpore() -> action.doSpore()
             sensor.isNeedResources() -> action.obtainResources()
-            else -> action.justAggressiveGrow(currentRootOrganId)
+            else -> {
+                val result = action.justAggressiveGrow(currentRootOrganId)
+                when {
+                    result != Move.WAIT -> result
+                    else -> action.justSuperAggressiveGrow(currentRootOrganId)
+                }
+            }
         }
 
     }
