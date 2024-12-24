@@ -122,6 +122,7 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
     fun isSpace(point: GridPoint): Boolean = grid[point.y][point.x] == Item.SPACE
     fun isSpaceOrProteinNotA(point: GridPoint): Boolean = desk.isSpace(point) || desk.isB(point) || desk.isC(point) || desk.isD(point)
     fun isSpaceOrProtein(point: GridPoint): Boolean = desk.isSpace(point) || desk.isA(point) || desk.isB(point) || desk.isC(point) || desk.isD(point)
+    fun isProtein(point: GridPoint): Boolean = desk.isA(point) || desk.isB(point) || desk.isC(point) || desk.isD(point)
     fun isOrgan(point: GridPoint): Boolean = grid[point.y][point.x] == Item.ROOT || grid[point.y][point.x] == Item.BASIC || grid[point.y][point.x] == Item.HARVESTER || grid[point.y][point.x] == Item.TENTACLE || grid[point.y][point.x] == Item.SPORER
     fun isRoot(point: GridPoint): Boolean = grid[point.y][point.x] == Item.ROOT
     fun isSporer(point: GridPoint): Boolean = grid[point.y][point.x] == Item.SPORER
@@ -307,16 +308,21 @@ class Action {
 
         val organFrom = pretenders.random()
         val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpaceOrProteinNotA(it)}.toList().random()
-        return Move.growBasic(organFrom, next).also { log("justGrow") }
+
+        val mayBeProtein = desk.neighbours(next).asSequence().filter { desk.isProtein(it)}.firstOrNull()
+        val canGrowHarvester = desk.myStock.enoughFor( ProteinStock.HARVESTER )
+        return if (mayBeProtein == null || !canGrowHarvester) {
+            Move.growBasic(organFrom, next).also { log("justGrow") }
+        } else {
+            Move.growHarvester(organFrom, next, mayBeProtein).also { log("just harv") }
+        }
+
     }
 
     fun justSuperAggressiveGrow(currentOrganRootId: Int): String {
 
-        val aWithMyHarv = desk.allPoints.asSequence().filter { desk.isHarvester(it) && desk.isMy(it) }
-            .flatMap { desk.neighbours(it).filter { desk.isA(it) } }.toSet()
-
         val pretenders = desk.getMyOrgans(currentOrganRootId).asSequence().filter {
-            desk.neighbours(it).any { desk.isSpaceOrProtein(it) && !aWithMyHarv.contains(it)}
+            desk.neighbours(it).any { desk.isSpaceOrProtein(it)}
         }.toList()
 
         if (pretenders.isEmpty()) {
@@ -325,8 +331,8 @@ class Action {
         }
 
         val organFrom = pretenders.random()
-        val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpaceOrProtein(it) && !aWithMyHarv.contains(it)}.toList().random()
-        return Move.growBasic(organFrom, next).also { log("justGrow") }
+        val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpaceOrProtein(it)}.toList().random()
+        return Move.growBasic(organFrom, next).also { log("aggrGrow") }
     }
 }
 
