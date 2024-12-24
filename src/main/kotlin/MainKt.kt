@@ -30,9 +30,8 @@ data class ProteinStock(val a: Int, val b: Int, val c: Int, val d: Int) {
        return diff.notNegative()
     }
     fun notNegative(): Boolean = a>=0 && b>=0 && c>=0 && d >= 0
-    operator fun minus(other: ProteinStock): ProteinStock {
-        return ProteinStock(a - other.a, b - other.b, c - other.c, d - other.d)
-    }
+    operator fun minus(other: ProteinStock): ProteinStock = ProteinStock(a - other.a, b - other.b, c - other.c, d - other.d)
+    operator fun plus(other: ProteinStock): ProteinStock = ProteinStock(a + other.a, b + other.b, c + other.c, d + other.d)
     companion object {
         val ROOT = ProteinStock(1, 1, 1, 1)
         val BASIC = ProteinStock(1, 0, 0, 0)
@@ -245,12 +244,7 @@ class Sensor {
         return placeForTentacle
     }
     fun isMaySpore(): Boolean {
-        //todo
-        return false
-    }
-    fun isNeedResources(): Boolean {
-        //todo
-        return false
+        return desk.myStock.enoughFor(ProteinStock.SPORER + ProteinStock.ROOT) && false
     }
     fun isNeedProteinASource(currentRootOrganId: Int): Boolean {
 
@@ -317,12 +311,7 @@ class Action {
         log("try ten from $organ to $placeForTentacle for $victim")
         return Move.growTentacle(organ, placeForTentacle, victim)
     }
-    fun doSpore(): String {
-        //todo
-        return Move.WAIT
-    }
-    fun obtainResources(): String {
-        //todo
+    fun doSpore(currentOrganRootId: Int): String {
         return Move.WAIT
     }
 
@@ -391,8 +380,7 @@ class Logic {
         return when {
             sensor.isNeedProteinASource(currentRootOrganId) -> action.doHarvForA(currentRootOrganId)
             placeForTentacles.isNotEmpty() -> action.doTentacles(currentRootOrganId, placeForTentacles)
-            sensor.isMaySpore() -> action.doSpore()
-            sensor.isNeedResources() -> action.obtainResources()
+            sensor.isMaySpore() -> action.doSpore(currentRootOrganId)
             else -> {
                 val result = action.justAggressiveGrow(currentRootOrganId)
                 when {
@@ -407,7 +395,7 @@ class Logic {
 }
 
 fun main() {
-    log("silver-arena-2")
+    log("silver-arena-3-rc")
     val start = System.currentTimeMillis()
     val logic = Logic()
     val input = Scanner(System.`in`)
