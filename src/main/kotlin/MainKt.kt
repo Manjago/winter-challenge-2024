@@ -176,6 +176,15 @@ object Move {
         return "GROW $organId $xTo $yTo HARVESTER $dirChar"
     }
 
+    fun growTentacle(organFrom: GridPoint, growTo: GridPoint, forVictim: GridPoint): String {
+        val dir = normalizeDirPoint(forVictim - growTo)
+        val dirChar = dirCharByDirPoint(dir)
+        val organId = desk.organId(organFrom)
+        val xTo = growTo.x
+        val yTo = growTo.y
+        return "GROW $organId $xTo $yTo TENTACLE $dirChar"
+    }
+
     private fun dirCharByDirPoint(dirPos: GridPoint): Char = when(dirPos) {
         Desk.NORTH -> 'N'
         Desk.EAST -> 'E'
@@ -218,9 +227,16 @@ object Path {
 }
 
 class Sensor {
-    fun isNeedTentacles(): Boolean {
-        //todo
-        return false
+    fun placeForTentacles(currentRootOrganId: Int): List<GridPoint> {
+
+        if (!desk.myStock.enoughFor(ProteinStock.TENTACLE)) {
+            return listOf()
+        }
+
+        val placeForTentacle: List<GridPoint> = desk.getMyOrgans(currentRootOrganId).asSequence().flatMap {
+            desk.neighbours(it).asSequence().filter { desk.neighbours(it).asSequence().any { desk.isEnemy(it) } }
+        }.toList()
+        return placeForTentacle
     }
     fun isMaySpore(): Boolean {
         //todo
@@ -283,9 +299,17 @@ class Action {
         }
 
     }
-    fun doTentacles(): String {
-        //todo
-        return Move.WAIT
+    fun doTentacles(currentRootOrganId: Int, placeForTentacles: List<GridPoint>): String {
+        check(placeForTentacles.isNotEmpty())
+        val placeForTentacle = placeForTentacles.random()
+
+        val organ = desk.neighbours(placeForTentacle).asSequence().filter { desk.isReallyMy(it, currentRootOrganId) && desk.isOrgan(it) }
+            .first()
+        val victim = desk.neighbours(placeForTentacle).asSequence().filter { desk.isEnemy(it) && desk.isOrgan(it) }
+            .first()
+
+        log("try ten from $organ to $placeForTentacle for $victim")
+        return Move.growTentacle(organ, placeForTentacle, victim)
     }
     fun doSpore(): String {
         //todo
@@ -311,10 +335,15 @@ class Action {
 
         val mayBeProtein = desk.neighbours(next).asSequence().filter { desk.isProtein(it)}.firstOrNull()
         val canGrowHarvester = desk.myStock.enoughFor( ProteinStock.HARVESTER )
-        return if (mayBeProtein == null || !canGrowHarvester) {
-            Move.growBasic(organFrom, next).also { log("justGrow") }
+        val needGrowHarvester = if (mayBeProtein != null) {
+            desk.neighbours(mayBeProtein).asSequence().any {desk.isHarvester(it)}.not()
         } else {
+            false
+        }
+        return if (mayBeProtein != null && canGrowHarvester && needGrowHarvester) {
             Move.growHarvester(organFrom, next, mayBeProtein).also { log("just harv") }
+        } else {
+            Move.growBasic(organFrom, next).also { log("justGrow") }
         }
 
     }
@@ -346,9 +375,11 @@ class Logic {
         val currentRootOrganId = desk.organRootId(currentRoot)
         log("root: $currentRootOrganId")
 
+
+        val placeForTentacles  = sensor.placeForTentacles(currentRootOrganId)
         return when {
             sensor.isNeedProteinASource(currentRootOrganId) -> action.doHarvForA(currentRootOrganId)
-            sensor.isNeedTentacles() -> action.doTentacles()
+            placeForTentacles.isNotEmpty() -> action.doTentacles(currentRootOrganId, placeForTentacles)
             sensor.isMaySpore() -> action.doSpore()
             sensor.isNeedResources() -> action.obtainResources()
             else -> {
