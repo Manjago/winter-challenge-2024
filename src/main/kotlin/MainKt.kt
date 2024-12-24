@@ -234,7 +234,9 @@ class Sensor {
         }
 
         val placeForTentacle: List<GridPoint> = desk.getMyOrgans(currentRootOrganId).asSequence().flatMap {
-            desk.neighbours(it).asSequence().filter { desk.neighbours(it).asSequence().any { desk.isEnemy(it) } }
+            desk.neighbours(it).asSequence()
+                .filter { desk.isSpace(it) || desk.isProtein(it)}
+                .filter { desk.neighbours(it).asSequence().any { desk.isEnemy(it) } }
         }.toList()
         return placeForTentacle
     }
