@@ -48,6 +48,8 @@ enum class Item {
 
 class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
 
+    private val center = GridPoint(width /2, height /2)
+
     private enum class MeOrEnemy {
         UNKNOWN, ME, ENEMY;
 
@@ -73,6 +75,8 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
             }
         }
     }
+
+    fun distToCenter(point: GridPoint): Int = dist(center, point)
 
     private val grid: Array<Array<Item>> = Array(height) { Array(width) { Item.SPACE } }
     private val meOrEnemy: Array<Array<MeOrEnemy>> =
@@ -322,6 +326,11 @@ class Action {
         return Move.WAIT
     }
 
+    fun List<GridPoint>.selectByDistToCenter(): GridPoint {
+        check(this.isNotEmpty())
+        return this.asSequence().minBy { desk.distToCenter(it) }
+    }
+
     fun justAggressiveGrow(currentOrganRootId: Int): String {
         val pretenders = desk.getMyOrgans(currentOrganRootId).asSequence().filter {
             desk.neighbours(it).any { desk.isSpaceOrProteinNotA(it)}
@@ -332,7 +341,7 @@ class Action {
             return "WAIT"
         }
 
-        val organFrom = pretenders.random()
+        val organFrom = pretenders.selectByDistToCenter()
         val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpaceOrProteinNotA(it)}.toList().random()
 
         val mayBeProtein = desk.neighbours(next).asSequence().filter { desk.isProtein(it)}.firstOrNull()
@@ -361,7 +370,7 @@ class Action {
             return "WAIT"
         }
 
-        val organFrom = pretenders.random()
+        val organFrom = pretenders.selectByDistToCenter()
         val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpaceOrProtein(it)}.toList().random()
         return Move.growBasic(organFrom, next).also { log("aggrGrow") }
     }
