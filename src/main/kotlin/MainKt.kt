@@ -407,6 +407,7 @@ class Logic {
 }
 
 fun main() {
+    log("silver-arena-2")
     val start = System.currentTimeMillis()
     val logic = Logic()
     val input = Scanner(System.`in`)
