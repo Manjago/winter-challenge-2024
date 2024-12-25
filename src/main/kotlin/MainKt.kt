@@ -646,7 +646,12 @@ class Logic {
         val hasActiveHarv =
             desk.allPoints.asSequence()
                 .filter { desk.isHarvester(it) && desk.isMy(it) }
-                .filter { desk.neighbours(it).any { sourceFun(it) } }.any()
+                .filter {
+                    val dir = desk.organDir(it)
+                    val sourcePretender = it + dir
+                    desk.inbound(sourcePretender) && sourceFun(it)
+                }
+                .any()
         //@formatter:on
 
         if (hasActiveHarv) {
