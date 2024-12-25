@@ -81,8 +81,8 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
         }
     }
 
-    private enum class OrganDir {
-        N, W, E, S, X;
+    private enum class OrganDir(val dirPoint: GridPoint) {
+        N(NORTH), W(WEST), E(EAST), S(SOUTH), X(NORTH);
 
         companion object {
             fun parseString(v: String): OrganDir = when (v) {
@@ -103,7 +103,7 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
     private val organIds: Array<Array<Int>> = Array(height) { Array(width) { -1 } }
     private val organRootIds: Array<Array<Int>> = Array(height) { Array(width) { -1 } }
     private val organParentIds: Array<Array<Int>> = Array(height) { Array(width) { -1 } }
-    private val organDirections: Array<Array<OrganDir>> = Array(height) { Array(width) { OrganDir.X } }
+    private val organDirs: Array<Array<OrganDir>> = Array(height) { Array(width) { OrganDir.X } }
 
     lateinit var myStock: ProteinStock
     lateinit var enemyStock: ProteinStock
@@ -117,7 +117,7 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
             organIds[y][x] = organId
             organRootIds[y][x] = organRootId
             organParentIds[y][x] = organParentId
-            organDirections[y][x] = OrganDir.parseString(organDir)
+            organDirs[y][x] = OrganDir.parseString(organDir)
         }
 
         when (type) {
@@ -166,6 +166,7 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
     fun isReallyMy(point: GridPoint, organRootId: Int): Boolean = isMy(point) && organRootId == organRootId(point)
     fun isEnemy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ENEMY
     fun organId(point: GridPoint): Int = organIds[point.y][point.x]
+    fun organDir(point: GridPoint): GridPoint = organDirs[point.y][point.x].dirPoint
     fun organRootId(point: GridPoint): Int = organRootIds[point.y][point.x]
     fun organParentId(point: GridPoint): Int = organParentIds[point.y][point.x]
     fun inbound(point: GridPoint) = point.x in 0 until width && point.y in 0 until height
@@ -221,6 +222,24 @@ sealed interface Move {
             return "GROW $organId $xTo $yTo HARVESTER $dirChar"
         }
     }
+    class Sporer(val organFrom: GridPoint, val growTo: GridPoint, val forSource: GridPoint) : Move {
+        override fun toString(): String {
+            val dir = normalizeDirPoint(forSource - growTo)
+            val dirChar = dirCharByDirPoint(dir)
+            val organId = desk.organId(organFrom)
+            val xTo = growTo.x
+            val yTo = growTo.y
+            return "GROW $organId $xTo $yTo SPORER $dirChar"
+        }
+    }
+    class Spore(val organFrom: GridPoint, val growTo: GridPoint) : Move {
+        override fun toString(): String {
+            val organId = desk.organId(organFrom)
+            val xTo = growTo.x
+            val yTo = growTo.y
+            return "SPORE $organId $xTo $yTo"
+        }
+    }
 
     class Tentacle(val organFrom: GridPoint, val growTo: GridPoint, val forVictim: GridPoint) : Move {
         override fun toString(): String {
@@ -270,6 +289,100 @@ object Path {
 }
 
 class Logic {
+
+    enum class SporeState {
+        NONE, SPORER, SPORE
+    }
+
+    val sporeStat = mutableMapOf<Int, SporeState>()
+
+    fun line(from: GridPoint, dir: GridPoint) : List<GridPoint> {
+        val result = mutableListOf<GridPoint>()
+
+        result.add(from)
+        var pretender = from;
+
+        pretender += dir
+        while(desk.inbound(pretender) && desk.isSpaceOrProtein(pretender)) {
+            result.add(pretender)
+            pretender += dir
+        }
+
+        return result
+    }
+
+    fun doSpore(currentRootOrganId: Int): Move? {
+        val sporeState = sporeStat.getOrPut(currentRootOrganId) { SporeState.NONE }
+
+        when(sporeState) {
+            SporeState.NONE -> {
+                if (!desk.myStock.enoughFor(ProteinStock.SPORER)) {
+                    log("no res for sporer")
+                    return null;
+                }
+               val pretenders = desk.getMyOrgans(currentRootOrganId).asSequence()
+                   .flatMap { desk.neighbours(it).asSequence().filter { desk.isSpaceOrProtein(it) } }
+                   .toList()
+               if (pretenders.isEmpty()) {
+                   log("no room for sporer")
+                   return null;
+               }
+
+               val pretender = pretenders.asSequence().flatMap {
+                    listOf(
+                    line(it, Desk.NORTH),
+                    line(it, Desk.EAST),
+                    line(it, Desk.WEST),
+                    line(it, Desk.SOUTH))
+                }.filter { it.size > 1 }.maxByOrNull { it.size }
+
+                if (pretender == null) {
+                    log("no good room for sporer")
+                    return null;
+                }
+
+                val organ = desk.neighbours(pretender.first()).asSequence().first {
+                    desk.isReallyMy(it, currentRootOrganId) && desk.isOrgan(it) }
+
+
+                log("set sporer from $organ to ${pretender.first()} for ${pretender.last()}")
+                sporeStat[currentRootOrganId] = SporeState.SPORER
+                return Move.Sporer(organ, pretender.first(), pretender.last())
+            }
+            SporeState.SPORER -> {
+
+                if (!desk.myStock.enoughFor(ProteinStock.ROOT)) {
+                    log("no res for SPORE")
+                    return null;
+                }
+
+                val sporer = desk.getMyOrgans(currentRootOrganId).asSequence().firstOrNull {
+                    desk.isSporer(it)
+                }
+                if (sporer == null) {
+                    sporeStat[currentRootOrganId] = SporeState.NONE
+                    log("sporer lost")
+                    return doSpore(currentRootOrganId)
+                }
+
+                val line = line(sporer, desk.organDir(sporer))
+                if (line.size > 1) {
+                    log("spore fro $sporer to ${line.last()}")
+                    sporeStat[currentRootOrganId] = SporeState.SPORE
+                    return Move.Spore(sporer, line.last())
+                } else {
+                    log("too short for spore")
+                    return null;
+                }
+            }
+            SporeState.SPORE -> {
+                log("already make spore")
+                return null
+            }
+        }
+
+        return null
+    }
 
     fun doHarvForA(currentRootOrganId: Int): Move? {
 
@@ -417,6 +530,7 @@ class Logic {
 
         //@formatter:off
         val result =
+            doSpore(currentRootOrganId) ?:
             doHarvForA(currentRootOrganId) ?:
             doTentacles(currentRootOrganId) ?:
             justAggressiveGrow(currentRootOrganId) ?:
