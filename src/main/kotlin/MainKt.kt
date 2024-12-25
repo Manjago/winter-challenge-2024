@@ -64,6 +64,7 @@ data class ProteinStock(val a: Int, val b: Int, val c: Int, val d: Int) {
         val TENTACLE = ProteinStock(0, 1, 1, 0)
         val SPORER = ProteinStock(0, 1, 0, 1)
         val SPORE_LIMIT = ProteinStock(2, 2, 2, 2)
+        val IDLE_HARV_LIMIT = ProteinStock(0, 0, 2, 2)
     }
 }
 
@@ -614,7 +615,7 @@ class Logic {
         }
 
         val mayBeProtein = desk.neighbours(next).asSequence().filter { desk.isProtein(it) }.firstOrNull()
-        val canGrowHarvester = desk.myStock.enoughFor(ProteinStock.HARVESTER)
+        val canGrowHarvester = desk.myStock.enoughFor(ProteinStock.IDLE_HARV_LIMIT)
         val needGrowHarvester = if (mayBeProtein != null) {
             desk.neighbours(mayBeProtein).asSequence().any { desk.isHarvester(it) }.not()
         } else {
@@ -693,9 +694,9 @@ class Logic {
             doSpore(currentRootOrganId) ?:
             doHarvFor(currentRootOrganId, A_CHAR, desk::isA) ?:
             doTentacles(currentRootOrganId) ?:
-            doHarvFor(currentRootOrganId, B_CHAR, desk::isB) ?:
             doHarvFor(currentRootOrganId, C_CHAR, desk::isC) ?:
             doHarvFor(currentRootOrganId, D_CHAR, desk::isD) ?:
+            doHarvFor(currentRootOrganId, B_CHAR, desk::isB) ?:
             justGrow(currentRootOrganId) ?:
             agressiveGrow(currentRootOrganId) ?:
             Move.Wait.INSTANCE
