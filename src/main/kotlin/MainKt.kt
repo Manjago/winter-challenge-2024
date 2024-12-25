@@ -41,6 +41,7 @@ fun logFlush() {
 
 data class ProteinStock(val a: Int, val b: Int, val c: Int, val d: Int) {
     fun enoughFor(other: ProteinStock): Boolean {
+        log("cmp $this and $other")
         val diff = this - other
         return diff.notNegative()
     }
@@ -51,6 +52,10 @@ data class ProteinStock(val a: Int, val b: Int, val c: Int, val d: Int) {
 
     operator fun plus(other: ProteinStock): ProteinStock =
         ProteinStock(a + other.a, b + other.b, c + other.c, d + other.d)
+
+    override fun toString(): String {
+        return "[$a,$b,$c,$d]"
+    }
 
     companion object {
         val ROOT = ProteinStock(1, 1, 1, 1)
@@ -346,6 +351,7 @@ class Logic {
 
         if (!desk.myStock.enoughFor(ProteinStock.SPORE_LIMIT)) {
             log("spore limit")
+            return null
         }
 
         when(sporeState) {
@@ -660,7 +666,7 @@ class Logic {
         }
 
         if (!desk.myStock.enoughFor(ProteinStock.HARVESTER)) {
-            log("no harv res")
+            log("no harv res, poor $sourceChar")
             return false
         }
 
@@ -680,7 +686,7 @@ class Logic {
 
         val currentRoot = desk.getMyRoots().sortedBy { desk.organId(it) }.drop(orgNum).first()
         val currentRootOrganId = desk.organRootId(currentRoot)
-        log("root: $currentRootOrganId")
+        log("root: $currentRootOrganId, stock: ${desk.myStock}")
 
         //@formatter:off
         val result =
