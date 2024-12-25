@@ -443,6 +443,34 @@ class Logic {
         }
     }
 
+    fun bfsTo(from: GridPoint, target: (GridPoint) -> Boolean) : List<List<GridPoint>> {
+        val result = mutableListOf<List<GridPoint>>()
+        val queue = ArrayDeque<List<GridPoint>>()
+        queue.add(listOf(from))
+        val seen = mutableSetOf<GridPoint>()
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            val lastElement = current.last()
+
+            if (seen.contains(lastElement)) {
+                continue
+            }
+            seen += lastElement
+
+            result += current
+
+            if (target(lastElement)) {
+                continue
+            }
+
+            desk.neighbours(lastElement).asSequence().filter { desk.isSpaceOrProtein(it) }.forEach { neighbour ->
+                queue.add(current + neighbour)
+            }
+        }
+
+        return result
+    }
+
     fun bfs(from: GridPoint, maxSize: Int) : List<List<GridPoint>> {
         val result = mutableListOf<List<GridPoint>>()
         val queue = ArrayDeque<List<GridPoint>>()
@@ -532,18 +560,30 @@ class Logic {
         return this.asSequence().minBy { desk.distToCenter(it) }
     }
 
-    fun justAggressiveGrow(currentOrganRootId: Int): Move? {
+    fun justGrow(currentOrganRootId: Int): Move? {
         val pretenders = desk.getMyOrgans(currentOrganRootId).asSequence().filter {
             desk.neighbours(it).any { desk.isSpaceOrProteinNotA(it) }
         }.toList()
 
         if (pretenders.isEmpty()) {
-            log("agressive fail")
+            log("grow fail")
             return null
         }
 
-        val organFrom = pretenders.selectByDistToCenter()
-        val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpaceOrProteinNotA(it) }.toList().random()
+        val route = pretenders.asSequence()
+            .flatMap { bfsTo(it, desk::isProtein) }
+            .filter { it.size > 1}
+            .filter { desk.isProtein(it.last()) }
+            .firstOrNull()
+
+        val (organFrom, next) = if (route != null) {
+            log("route fr ${route.first()} to ${route[1]} cz ${route.last()}")
+            route.first() to route[1]
+        } else {
+            val organFrom = pretenders.random()
+            val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpaceOrProteinNotA(it) }.toList().random()
+            organFrom to next
+        }
 
         val mayBeProtein = desk.neighbours(next).asSequence().filter { desk.isProtein(it) }.firstOrNull()
         val canGrowHarvester = desk.myStock.enoughFor(ProteinStock.HARVESTER)
@@ -562,14 +602,14 @@ class Logic {
 
     }
 
-    fun justSuperAggressiveGrow(currentOrganRootId: Int): Move? {
+    fun agressiveGrow(currentOrganRootId: Int): Move? {
 
         val pretenders = desk.getMyOrgans(currentOrganRootId).asSequence().filter {
             desk.neighbours(it).any { desk.isSpaceOrProtein(it) }
         }.toList()
 
         if (pretenders.isEmpty()) {
-            log("super agressive fail")
+            log("agressive fail")
             return null
         }
 
@@ -608,8 +648,8 @@ class Logic {
             doSpore(currentRootOrganId) ?:
             doHarvForA(currentRootOrganId) ?:
             doTentacles(currentRootOrganId) ?:
-            justAggressiveGrow(currentRootOrganId) ?:
-            justSuperAggressiveGrow(currentRootOrganId) ?:
+            justGrow(currentRootOrganId) ?:
+            agressiveGrow(currentRootOrganId) ?:
             Move.Wait.INSTANCE
         //@formatter:on
 
@@ -701,7 +741,7 @@ fun mainLoop() {
 }
 
 fun main() {
-    log("silver-arena-4")
+    log("silver-arena-5-rc1")
     mainLoop()
 }
 
