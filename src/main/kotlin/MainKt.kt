@@ -691,12 +691,12 @@ class Logic {
 
         //@formatter:off
         val result =
-            doSpore(currentRootOrganId) ?:
             doHarvFor(currentRootOrganId, A_CHAR, desk::isA) ?:
             doTentacles(currentRootOrganId) ?:
             doHarvFor(currentRootOrganId, C_CHAR, desk::isC) ?:
             doHarvFor(currentRootOrganId, D_CHAR, desk::isD) ?:
             doHarvFor(currentRootOrganId, B_CHAR, desk::isB) ?:
+            doSpore(currentRootOrganId) ?:
             justGrow(currentRootOrganId) ?:
             agressiveGrow(currentRootOrganId) ?:
             Move.Wait.INSTANCE
