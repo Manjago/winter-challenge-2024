@@ -573,6 +573,7 @@ class Logic {
         val route = pretenders.asSequence()
             .flatMap { bfsTo(it, desk::isProtein) }
             .filter { it.size > 1}
+            .filter {desk.isSpace(it[1]) }
             .filter { desk.isProtein(it.last()) }
             .firstOrNull()
 
