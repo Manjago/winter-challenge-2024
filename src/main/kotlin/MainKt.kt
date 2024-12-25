@@ -296,7 +296,7 @@ class Logic {
 
     val sporeStat = mutableMapOf<Int, SporeState>()
 
-    fun line(from: GridPoint, dir: GridPoint) : List<GridPoint> {
+    fun line(from: GridPoint, dir: GridPoint, noToSporer: Boolean = false) : List<GridPoint> {
         val result = mutableListOf<GridPoint>()
 
         result.add(from)
@@ -306,6 +306,12 @@ class Logic {
         while(desk.inbound(pretender) && desk.isSpaceOrProtein(pretender)) {
             result.add(pretender)
             pretender += dir
+        }
+
+        if (desk.inbound(pretender) && desk.isSporer(pretender)) {
+            log("no shoot to sporer")
+            result.clear()
+            result += pretender
         }
 
         return result
@@ -334,7 +340,8 @@ class Logic {
                     line(it, Desk.EAST),
                     line(it, Desk.WEST),
                     line(it, Desk.SOUTH))
-                }.filter { it.size > 1 }.maxByOrNull { it.size }
+                }.filter { it.size > 1 }
+                   .maxByOrNull { it.size }
 
                 if (pretender == null) {
                     log("no good room for sporer")
@@ -626,7 +633,7 @@ fun mainLoop() {
 }
 
 fun main() {
-    log("silver-arena-3")
+    log("silver-arena-4-rc")
     mainLoop()
 }
 
