@@ -58,7 +58,7 @@ data class ProteinStock(val a: Int, val b: Int, val c: Int, val d: Int) {
         val HARVESTER = ProteinStock(0, 0, 1, 1)
         val TENTACLE = ProteinStock(0, 1, 1, 0)
         val SPORER = ProteinStock(0, 1, 0, 1)
-        val SPORE_LIMIT = ProteinStock(1, 1, 1, 1)
+        val SPORE_LIMIT = ProteinStock(2, 2, 2, 2)
     }
 }
 
@@ -312,6 +312,14 @@ object Path {
 
 class Logic {
 
+    val harvProcess = mutableMapOf<Char, Boolean>()
+    init {
+        harvProcess[A_CHAR] = false
+        harvProcess[B_CHAR] = false
+        harvProcess[C_CHAR] = false
+        harvProcess[D_CHAR] = false
+    }
+
     enum class SporeState {
         NONE, SPORER, SPORE
     }
@@ -417,26 +425,34 @@ class Logic {
         return null
     }
 
-    fun doHarvForA(currentRootOrganId: Int): Move? {
+    fun doHarvFor(currentRootOrganId: Int, sourceChar: Char, sourceFun: (GridPoint) -> Boolean): Move? {
 
-        if (!isNeedProteinASource(currentRootOrganId)) {
-            log("no need a")
+        if (harvProcess[sourceChar]!!) {
+            log("work on $sourceChar")
             return null
         }
 
-        val allAPretenders = desk.allPoints.asSequence().filter { desk.isA(it) }
+        if (!isNeedProteinSource(sourceChar, sourceFun)) {
+            log("no need $sourceChar")
+            return null
+        }
+
+        val allAPretenders = desk.allPoints.asSequence().filter { sourceFun(it) }
             .flatMap { desk.neighbours(it).filter { desk.isSpace(it) }.asSequence() }.toSet()
 
         val myOrgans = desk.getMyOrgans(currentRootOrganId)
 
-        val paths = Path.minPathSeq(myOrgans, allAPretenders, desk::isSpaceOrProteinNotA)
+        val paths = Path.minPathSeq(myOrgans, allAPretenders)
+        { desk.isSpace(it) || (desk.isProtein(it) && !sourceFun(it)) }
         if (paths.isEmpty()) {
-            log("not 'a' path")
+            log("not '$sourceChar' path")
             return null
         }
 
         val minPath = paths.minBy { it.size }
-        log("found 'a' path $minPath")
+        log("found '$sourceChar' path $minPath")
+
+        harvProcess[sourceChar] = true
 
         // organ -  ...   - pretender
         // or
@@ -445,11 +461,11 @@ class Logic {
         if (minPath.size == 2) {
             val fromOrgan = minPath.first()
             val pretender = minPath.last()
-            val aSource = desk.neighbours(pretender).asSequence().filter { desk.isA(it) }.first()
-            log("first a harv")
+            val aSource = desk.neighbours(pretender).asSequence().filter { sourceFun(it) }.first()
+            log("first $sourceChar harv")
             return Move.Harvester(fromOrgan, pretender, aSource)
         } else {
-            log("goto a harv")
+            log("goto $sourceChar harv")
             return Move.Basic(minPath.first(), minPath[1])
         }
     }
@@ -630,14 +646,17 @@ class Logic {
         return Move.Basic(organFrom, next).also { log("aggrGrow") }
     }
 
-    fun isNeedProteinASource(currentRootOrganId: Int): Boolean {
+    fun isNeedProteinSource(sourceChar: Char, sourceFun: (GridPoint) -> Boolean): Boolean {
 
-        val hasActiveHarvA =
-            desk.allPoints.asSequence().filter { desk.isHarvester(it) && desk.isReallyMy(it, currentRootOrganId) }
-                .filter { desk.neighbours(it).any { desk.isA(it) } }.any()
+        //@formatter:off
+        val hasActiveHarv =
+            desk.allPoints.asSequence()
+                .filter { desk.isHarvester(it) && desk.isMy(it) }
+                .filter { desk.neighbours(it).any { sourceFun(it) } }.any()
+        //@formatter:on
 
-        if (hasActiveHarvA) {
-            log("has harv a")
+        if (hasActiveHarv) {
+            log("has harv $sourceChar")
             return false
         }
 
@@ -646,7 +665,7 @@ class Logic {
             return false
         }
 
-        log("need harv a")
+        log("need harv $sourceChar")
         return true
     }
 
@@ -658,14 +677,24 @@ class Logic {
         //@formatter:off
         val result =
             doSpore(currentRootOrganId) ?:
-            doHarvForA(currentRootOrganId) ?:
+            doHarvFor(currentRootOrganId, A_CHAR, desk::isA) ?:
             doTentacles(currentRootOrganId) ?:
+            doHarvFor(currentRootOrganId, B_CHAR, desk::isB) ?:
+            doHarvFor(currentRootOrganId, C_CHAR, desk::isC) ?:
+            doHarvFor(currentRootOrganId, D_CHAR, desk::isD) ?:
             justGrow(currentRootOrganId) ?:
             agressiveGrow(currentRootOrganId) ?:
             Move.Wait.INSTANCE
         //@formatter:on
 
         return result.toProtocolMove()
+    }
+
+    companion object {
+        const val A_CHAR = 'A'
+        const val B_CHAR = 'B'
+        const val C_CHAR = 'C'
+        const val D_CHAR = 'D'
     }
 
 }
