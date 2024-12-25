@@ -24,6 +24,14 @@ fun normalizeDirPoint(rawDirPoint: GridPoint): GridPoint {
     return GridPoint(sgn(rawDirPoint.x), sgn(rawDirPoint.y))
 }
 
+fun dirCharByDirPoint(dirPos: GridPoint): Char = when (dirPos) {
+    Desk.NORTH -> 'N'
+    Desk.EAST -> 'E'
+    Desk.SOUTH -> 'S'
+    Desk.WEST -> 'W'
+    else -> throw IllegalArgumentException("dirPos $dirPos is not a valid direction")
+}
+
 val logSB = StringBuilder()
 fun log(v: String) = logSB.append(v).append("\n")
 fun logFlush() {
@@ -101,14 +109,7 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
     lateinit var enemyStock: ProteinStock
 
     fun fill(
-        x: Int,
-        y: Int,
-        type: String,
-        owner: Int,
-        organId: Int,
-        organRootId: Int,
-        organParentId: Int,
-        organDir: String
+        x: Int, y: Int, type: String, owner: Int, organId: Int, organRootId: Int, organParentId: Int, organDir: String
     ) {
 
         fun registerOrgan() {
@@ -190,40 +191,45 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
 
 }
 
-object Move {
-    val WAIT = "WAIT"
-    fun growBasic(organFrom: GridPoint, growTo: GridPoint): String {
-        val organId = desk.organId(organFrom)
-        val xTo = growTo.x
-        val yTo = growTo.y
-        return "GROW $organId $xTo $yTo BASIC"
+sealed interface Move {
+
+    enum class Wait : Move {
+        INSTANCE;
+
+        override fun toString() = "WAIT"
     }
 
-    fun growHarvester(organFrom: GridPoint, growTo: GridPoint, forSource: GridPoint): String {
-        val dir = normalizeDirPoint(forSource - growTo)
-        val dirChar = dirCharByDirPoint(dir)
-        val organId = desk.organId(organFrom)
-        val xTo = growTo.x
-        val yTo = growTo.y
-        return "GROW $organId $xTo $yTo HARVESTER $dirChar"
+    class Basic(val organFrom: GridPoint, val growTo: GridPoint) : Move {
+        override fun toString(): String {
+            val organId = desk.organId(organFrom)
+            val xTo = growTo.x
+            val yTo = growTo.y
+            return "GROW $organId $xTo $yTo BASIC"
+        }
     }
 
-    fun growTentacle(organFrom: GridPoint, growTo: GridPoint, forVictim: GridPoint): String {
-        val dir = normalizeDirPoint(forVictim - growTo)
-        val dirChar = dirCharByDirPoint(dir)
-        val organId = desk.organId(organFrom)
-        val xTo = growTo.x
-        val yTo = growTo.y
-        return "GROW $organId $xTo $yTo TENTACLE $dirChar"
+    class Harvester(val organFrom: GridPoint, val growTo: GridPoint, val forSource: GridPoint) : Move {
+        override fun toString(): String {
+            val dir = normalizeDirPoint(forSource - growTo)
+            val dirChar = dirCharByDirPoint(dir)
+            val organId = desk.organId(organFrom)
+            val xTo = growTo.x
+            val yTo = growTo.y
+            return "GROW $organId $xTo $yTo HARVESTER $dirChar"
+        }
     }
 
-    private fun dirCharByDirPoint(dirPos: GridPoint): Char = when (dirPos) {
-        Desk.NORTH -> 'N'
-        Desk.EAST -> 'E'
-        Desk.SOUTH -> 'S'
-        Desk.WEST -> 'W'
-        else -> throw IllegalArgumentException("dirPos $dirPos is not a valid direction")
+    class Tentacle(val organFrom: GridPoint, val growTo: GridPoint, val forVictim: GridPoint) : Move {
+        override fun toString(): String {
+            val dir = normalizeDirPoint(forVictim - growTo)
+            val dirChar = dirCharByDirPoint(dir)
+            val organId = desk.organId(organFrom)
+            val xTo = growTo.x
+            val yTo = growTo.y
+            return "GROW $organId $xTo $yTo TENTACLE $dirChar"
+        }
     }
+
 }
 
 object Path {
@@ -254,30 +260,109 @@ object Path {
     }
 
     fun minPathSeq(
-        from: Sequence<GridPoint>,
-        to: Set<GridPoint>,
-        filter: (GridPoint) -> Boolean
+        from: Sequence<GridPoint>, to: Set<GridPoint>, filter: (GridPoint) -> Boolean
     ): List<List<GridPoint>> {
         return from.map { minPath(it, to, filter) }.filterNotNull().filter { it.isNotEmpty() }.toList()
     }
 }
 
-class Sensor {
-    fun placeForTentacles(currentRootOrganId: Int): List<GridPoint> {
+class Logic {
 
-        if (!desk.myStock.enoughFor(ProteinStock.TENTACLE)) {
-            return listOf()
+    fun doHarvForA(currentRootOrganId: Int): Move? {
+
+        if (!isNeedProteinASource(currentRootOrganId)) {
+            return null
         }
 
-        val placeForTentacle: List<GridPoint> = desk.getMyOrgans(currentRootOrganId).asSequence().flatMap {
-            desk.neighbours(it).asSequence().filter { desk.isSpace(it) || desk.isProtein(it) }
-                .filter { desk.neighbours(it).asSequence().any { desk.isEnemy(it) } }
-        }.toList()
-        return placeForTentacle
+        //todo
+        val allAPretenders = desk.allPoints.asSequence().filter { desk.isA(it) }
+            .flatMap { desk.neighbours(it).filter { desk.isSpace(it) }.asSequence() }.toSet()
+
+        val myOrgans = desk.getMyOrgans(currentRootOrganId)
+
+        val paths = Path.minPathSeq(myOrgans, allAPretenders, desk::isSpaceOrProteinNotA)
+        if (paths.isEmpty()) {
+            log("not 'a' path")
+            return null
+        }
+
+        val minPath = paths.minBy { it.size }
+        log("found 'a' path " + minPath)
+
+        // organ -  ...   - pretender
+        // or
+        // organ -  pretender
+
+        if (minPath.size == 2) {
+            val fromOrgan = minPath.first()
+            val pretender = minPath.last()
+            val aSource = desk.neighbours(pretender).asSequence().filter { desk.isA(it) }.first()
+            return Move.Harvester(fromOrgan, pretender, aSource)
+        } else {
+            return Move.Basic(minPath.first(), minPath[1])
+        }
     }
 
-    fun isMaySpore(): Boolean {
-        return desk.myStock.enoughFor(ProteinStock.SPORER + ProteinStock.ROOT) && false
+    fun doTentacles(currentRootOrganId: Int, placeForTentacles: List<GridPoint>): Move? {
+        check(placeForTentacles.isNotEmpty())
+        val placeForTentacle = placeForTentacles.random()
+
+        val organ = desk.neighbours(placeForTentacle).asSequence()
+            .filter { desk.isReallyMy(it, currentRootOrganId) && desk.isOrgan(it) }.first()
+        val victim =
+            desk.neighbours(placeForTentacle).asSequence().filter { desk.isEnemy(it) && desk.isOrgan(it) }.first()
+
+        log("try ten from $organ to $placeForTentacle for $victim")
+        return Move.Tentacle(organ, placeForTentacle, victim)
+    }
+
+    fun List<GridPoint>.selectByDistToCenter(): GridPoint {
+        check(this.isNotEmpty())
+        return this.asSequence().minBy { desk.distToCenter(it) }
+    }
+
+    fun justAggressiveGrow(currentOrganRootId: Int): Move? {
+        val pretenders = desk.getMyOrgans(currentOrganRootId).asSequence().filter {
+            desk.neighbours(it).any { desk.isSpaceOrProteinNotA(it) }
+        }.toList()
+
+        if (pretenders.isEmpty()) {
+            log("agressive fail")
+            return null
+        }
+
+        val organFrom = pretenders.selectByDistToCenter()
+        val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpaceOrProteinNotA(it) }.toList().random()
+
+        val mayBeProtein = desk.neighbours(next).asSequence().filter { desk.isProtein(it) }.firstOrNull()
+        val canGrowHarvester = desk.myStock.enoughFor(ProteinStock.HARVESTER)
+        val needGrowHarvester = if (mayBeProtein != null) {
+            desk.neighbours(mayBeProtein).asSequence().any { desk.isHarvester(it) }.not()
+        } else {
+            false
+        }
+        return if (mayBeProtein != null && canGrowHarvester && needGrowHarvester) {
+            Move.Harvester(organFrom, next, mayBeProtein).also { log("just harv") }
+        } else {
+            Move.Basic(organFrom, next).also { log("justGrow") }
+        }
+
+    }
+
+    fun justSuperAggressiveGrow(currentOrganRootId: Int): Move? {
+
+        val pretenders = desk.getMyOrgans(currentOrganRootId).asSequence().filter {
+            desk.neighbours(it).any { desk.isSpaceOrProtein(it) }
+        }.toList()
+
+        if (pretenders.isEmpty()) {
+            log("super agressive fail")
+            return null
+        }
+
+        val organFrom = pretenders.selectByDistToCenter()
+        val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpaceOrProtein(it) }.toList().random()
+        return Move.Basic(organFrom, next).also { log("aggrGrow") }
     }
 
     fun isNeedProteinASource(currentRootOrganId: Int): Boolean {
@@ -297,132 +382,22 @@ class Sensor {
 
         return true
     }
-}
-
-class Action {
-    fun doHarvForA(currentRootOrganId: Int): String {
-        //todo
-        val allAPretenders = desk.allPoints.asSequence().filter { desk.isA(it) }
-            .flatMap { desk.neighbours(it).filter { desk.isSpace(it) }.asSequence() }.toSet()
-
-        val myOrgans = desk.getMyOrgans(currentRootOrganId)
-
-        val paths = Path.minPathSeq(myOrgans, allAPretenders, desk::isSpaceOrProteinNotA)
-        if (paths.isEmpty()) {
-            log("not 'a' path")
-            return Move.WAIT
-        }
-
-        val minPath = paths.minBy { it.size }
-        log("found 'a' path " + minPath)
-
-        // organ -  ...   - pretender
-        // or
-        // organ -  pretender
-
-        if (minPath.size == 2) {
-            val fromOrgan = minPath.first()
-            val pretender = minPath.last()
-            val aSource = desk.neighbours(pretender).asSequence().filter { desk.isA(it) }.first()
-            return Move.growHarvester(fromOrgan, pretender, aSource)
-        } else {
-            return Move.growBasic(minPath.first(), minPath[1])
-        }
-
-    }
-
-    fun doTentacles(currentRootOrganId: Int, placeForTentacles: List<GridPoint>): String {
-        check(placeForTentacles.isNotEmpty())
-        val placeForTentacle = placeForTentacles.random()
-
-        val organ = desk.neighbours(placeForTentacle).asSequence()
-            .filter { desk.isReallyMy(it, currentRootOrganId) && desk.isOrgan(it) }.first()
-        val victim =
-            desk.neighbours(placeForTentacle).asSequence().filter { desk.isEnemy(it) && desk.isOrgan(it) }.first()
-
-        log("try ten from $organ to $placeForTentacle for $victim")
-        return Move.growTentacle(organ, placeForTentacle, victim)
-    }
-
-    fun doSpore(currentOrganRootId: Int): String {
-        return Move.WAIT
-    }
-
-    fun List<GridPoint>.selectByDistToCenter(): GridPoint {
-        check(this.isNotEmpty())
-        return this.asSequence().minBy { desk.distToCenter(it) }
-    }
-
-    fun justAggressiveGrow(currentOrganRootId: Int): String {
-        val pretenders = desk.getMyOrgans(currentOrganRootId).asSequence().filter {
-            desk.neighbours(it).any { desk.isSpaceOrProteinNotA(it) }
-        }.toList()
-
-        if (pretenders.isEmpty()) {
-            log("agressive fail")
-            return "WAIT"
-        }
-
-        val organFrom = pretenders.selectByDistToCenter()
-        val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpaceOrProteinNotA(it) }.toList().random()
-
-        val mayBeProtein = desk.neighbours(next).asSequence().filter { desk.isProtein(it) }.firstOrNull()
-        val canGrowHarvester = desk.myStock.enoughFor(ProteinStock.HARVESTER)
-        val needGrowHarvester = if (mayBeProtein != null) {
-            desk.neighbours(mayBeProtein).asSequence().any { desk.isHarvester(it) }.not()
-        } else {
-            false
-        }
-        return if (mayBeProtein != null && canGrowHarvester && needGrowHarvester) {
-            Move.growHarvester(organFrom, next, mayBeProtein).also { log("just harv") }
-        } else {
-            Move.growBasic(organFrom, next).also { log("justGrow") }
-        }
-
-    }
-
-    fun justSuperAggressiveGrow(currentOrganRootId: Int): String {
-
-        val pretenders = desk.getMyOrgans(currentOrganRootId).asSequence().filter {
-            desk.neighbours(it).any { desk.isSpaceOrProtein(it) }
-        }.toList()
-
-        if (pretenders.isEmpty()) {
-            log("super agressive fail")
-            return "WAIT"
-        }
-
-        val organFrom = pretenders.selectByDistToCenter()
-        val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpaceOrProtein(it) }.toList().random()
-        return Move.growBasic(organFrom, next).also { log("aggrGrow") }
-    }
-}
-
-class Logic {
-
-    val sensor = Sensor()
-    val action = Action()
 
     fun move(orgNum: Int): String {
         val currentRoot = desk.getMyRoots().sortedBy { desk.organId(it) }.drop(orgNum).first()
         val currentRootOrganId = desk.organRootId(currentRoot)
         log("root: $currentRootOrganId")
 
+        //@formatter:off
+        val result =
+            doHarvForA(currentRootOrganId) ?:
+            doTentacles(currentRootOrganId, listOf()) ?:
+            justAggressiveGrow(currentRootOrganId) ?:
+            justSuperAggressiveGrow(currentRootOrganId) ?:
+            Move.Wait.INSTANCE
+        //@formatter:on
 
-        val placeForTentacles = sensor.placeForTentacles(currentRootOrganId)
-        return when {
-            sensor.isNeedProteinASource(currentRootOrganId) -> action.doHarvForA(currentRootOrganId)
-            placeForTentacles.isNotEmpty() -> action.doTentacles(currentRootOrganId, placeForTentacles)
-            sensor.isMaySpore() -> action.doSpore(currentRootOrganId)
-            else -> {
-                val result = action.justAggressiveGrow(currentRootOrganId)
-                when {
-                    result != Move.WAIT -> result
-                    else -> action.justSuperAggressiveGrow(currentRootOrganId)
-                }
-            }
-        }
-
+        return result.toString()
     }
 
 }
