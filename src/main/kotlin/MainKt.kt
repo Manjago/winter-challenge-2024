@@ -274,6 +274,7 @@ class Logic {
     fun doHarvForA(currentRootOrganId: Int): Move? {
 
         if (!isNeedProteinASource(currentRootOrganId)) {
+            log("no need a")
             return null
         }
 
@@ -299,8 +300,10 @@ class Logic {
             val fromOrgan = minPath.first()
             val pretender = minPath.last()
             val aSource = desk.neighbours(pretender).asSequence().filter { desk.isA(it) }.first()
+            log("first a harv")
             return Move.Harvester(fromOrgan, pretender, aSource)
         } else {
+            log("goto a harv")
             return Move.Basic(minPath.first(), minPath[1])
         }
     }
@@ -308,6 +311,7 @@ class Logic {
     fun doTentacles(currentRootOrganId: Int): Move? {
 
         if (!desk.myStock.enoughFor(ProteinStock.TENTACLE)) {
+            log("no energy for t")
             return null
         }
 
@@ -318,6 +322,7 @@ class Logic {
             }.toList()
 
         if (placeForTentacles.isEmpty()) {
+            log("no room for t")
             return null
         }
 
@@ -360,8 +365,10 @@ class Logic {
             false
         }
         return if (mayBeProtein != null && canGrowHarvester && needGrowHarvester) {
+            log("idle harv")
             Move.Harvester(organFrom, next, mayBeProtein).also { log("just harv") }
         } else {
+            log("idle basic")
             Move.Basic(organFrom, next).also { log("justGrow") }
         }
 
@@ -390,14 +397,16 @@ class Logic {
                 .filter { desk.neighbours(it).any { desk.isA(it) } }.any()
 
         if (hasActiveHarvA) {
+            log("has harv a")
             return false
         }
 
         if (!desk.myStock.enoughFor(ProteinStock.HARVESTER)) {
-            log("no harv!")
+            log("no harv res")
             return false
         }
 
+        log("need harv a")
         return true
     }
 
