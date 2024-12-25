@@ -656,7 +656,7 @@ class Logic {
                 .filter {
                     val dir = desk.organDir(it)
                     val sourcePretender = it + dir
-                    desk.inbound(sourcePretender) && sourceFun(it)
+                    desk.inbound(sourcePretender) && sourceFun(sourcePretender)
                 }
                 .any()
         //@formatter:on
