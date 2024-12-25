@@ -213,14 +213,17 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
 
 sealed interface Move {
 
-    enum class Wait : Move {
-        INSTANCE;
+    fun toProtocolMove() : String
 
-        override fun toString() = "WAIT"
+    enum class Wait : Move {
+        INSTANCE {
+            override fun toProtocolMove(): String = "WAIT"
+        };
     }
 
     class Basic(val organFrom: GridPoint, val growTo: GridPoint) : Move {
-        override fun toString(): String {
+        override fun toProtocolMove(): String {
+            desk.myStock -= ProteinStock.BASIC
             val organId = desk.organId(organFrom)
             val xTo = growTo.x
             val yTo = growTo.y
@@ -229,7 +232,8 @@ sealed interface Move {
     }
 
     class Harvester(val organFrom: GridPoint, val growTo: GridPoint, val forSource: GridPoint) : Move {
-        override fun toString(): String {
+        override fun toProtocolMove(): String {
+            desk.myStock -= ProteinStock.HARVESTER
             val dir = normalizeDirPoint(forSource - growTo)
             val dirChar = dirCharByDirPoint(dir)
             val organId = desk.organId(organFrom)
@@ -239,7 +243,8 @@ sealed interface Move {
         }
     }
     class Sporer(val organFrom: GridPoint, val growTo: GridPoint, val forSource: GridPoint) : Move {
-        override fun toString(): String {
+        override fun toProtocolMove(): String {
+            desk.myStock -= ProteinStock.SPORER
             val dir = normalizeDirPoint(forSource - growTo)
             val dirChar = dirCharByDirPoint(dir)
             val organId = desk.organId(organFrom)
@@ -249,7 +254,8 @@ sealed interface Move {
         }
     }
     class Spore(val organFrom: GridPoint, val growTo: GridPoint) : Move {
-        override fun toString(): String {
+        override fun toProtocolMove(): String {
+            desk.myStock -= ProteinStock.ROOT
             val organId = desk.organId(organFrom)
             val xTo = growTo.x
             val yTo = growTo.y
@@ -258,7 +264,7 @@ sealed interface Move {
     }
 
     class Tentacle(val organFrom: GridPoint, val growTo: GridPoint, val forVictim: GridPoint) : Move {
-        override fun toString(): String {
+        override fun toProtocolMove(): String {
             val dir = normalizeDirPoint(forVictim - growTo)
             val dirChar = dirCharByDirPoint(dir)
             val organId = desk.organId(organFrom)
@@ -659,7 +665,7 @@ class Logic {
             Move.Wait.INSTANCE
         //@formatter:on
 
-        return result.toString()
+        return result.toProtocolMove()
     }
 
 }
