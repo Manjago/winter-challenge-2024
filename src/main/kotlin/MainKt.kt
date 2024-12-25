@@ -137,6 +137,8 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
 
     fun getMyOrgans(organRootId: Int): Sequence<GridPoint> =
         allPoints.asSequence().filter { isOrgan(it) && isReallyMy(it, organRootId) }
+    fun getEnemyOrgans(): Sequence<GridPoint> =
+        allPoints.asSequence().filter { isOrgan(it) && isEnemy(it) }
 
     fun getMyRoots(): Sequence<GridPoint> = allPoints.asSequence().filter { isRoot(it) && isMy(it) }
     fun getEnemyRoots(): Sequence<GridPoint> = allPoints.asSequence().filter { isRoot(it) && isEnemy(it) }
@@ -165,6 +167,7 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
     fun isEnemy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ENEMY
     fun organId(point: GridPoint): Int = organIds[point.y][point.x]
     fun organRootId(point: GridPoint): Int = organRootIds[point.y][point.x]
+    fun organParentId(point: GridPoint): Int = organParentIds[point.y][point.x]
     fun inbound(point: GridPoint) = point.x in 0 until width && point.y in 0 until height
 
     fun neighbours(point: GridPoint): List<GridPoint> {
@@ -274,7 +277,6 @@ class Logic {
             return null
         }
 
-        //todo
         val allAPretenders = desk.allPoints.asSequence().filter { desk.isA(it) }
             .flatMap { desk.neighbours(it).filter { desk.isSpace(it) }.asSequence() }.toSet()
 
@@ -303,17 +305,33 @@ class Logic {
         }
     }
 
-    fun doTentacles(currentRootOrganId: Int, placeForTentacles: List<GridPoint>): Move? {
-        check(placeForTentacles.isNotEmpty())
-        val placeForTentacle = placeForTentacles.random()
+    fun doTentacles(currentRootOrganId: Int): Move? {
 
-        val organ = desk.neighbours(placeForTentacle).asSequence()
-            .filter { desk.isReallyMy(it, currentRootOrganId) && desk.isOrgan(it) }.first()
-        val victim =
-            desk.neighbours(placeForTentacle).asSequence().filter { desk.isEnemy(it) && desk.isOrgan(it) }.first()
+        if (!desk.myStock.enoughFor(ProteinStock.TENTACLE)) {
+            return null
+        }
 
-        log("try ten from $organ to $placeForTentacle for $victim")
-        return Move.Tentacle(organ, placeForTentacle, victim)
+        val placeForTentacles: List<GridPoint> = desk.getEnemyOrgans().asSequence()
+            .flatMap {
+                desk.neighbours(it).asSequence().filter { desk.isSpaceOrProtein(it) }
+                    .filter { desk.neighbours(it).asSequence().any { desk.isReallyMy(it, currentRootOrganId) } }
+            }.toList()
+
+        if (placeForTentacles.isEmpty()) {
+            return null
+        }
+
+        data class TentacleVictim(val ten: GridPoint, val victim: GridPoint, val organFrom: GridPoint)
+
+        val m = placeForTentacles.asSequence().map {
+            val n = desk.neighbours(it)
+            val victim = n.first { desk.isEnemy(it) }
+            val myOrgan = n.first { desk.isOrgan(it) && desk.isReallyMy(it, currentRootOrganId) }
+            TentacleVictim(it, victim, myOrgan)
+        }.minBy { desk.organParentId(it.victim) }
+
+        log("try ten from ${m.organFrom} to ${m.ten} for ${m.victim} with pid ${desk.organParentId(m.victim)}")
+        return Move.Tentacle(m.organFrom, m.ten, m.victim)
     }
 
     fun List<GridPoint>.selectByDistToCenter(): GridPoint {
@@ -391,7 +409,7 @@ class Logic {
         //@formatter:off
         val result =
             doHarvForA(currentRootOrganId) ?:
-            doTentacles(currentRootOrganId, listOf()) ?:
+            doTentacles(currentRootOrganId) ?:
             justAggressiveGrow(currentRootOrganId) ?:
             justSuperAggressiveGrow(currentRootOrganId) ?:
             Move.Wait.INSTANCE
