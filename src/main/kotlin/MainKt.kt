@@ -313,12 +313,6 @@ object Path {
 class Logic {
 
     val harvProcess = mutableMapOf<Char, Boolean>()
-    init {
-        harvProcess[A_CHAR] = false
-        harvProcess[B_CHAR] = false
-        harvProcess[C_CHAR] = false
-        harvProcess[D_CHAR] = false
-    }
 
     enum class SporeState {
         NONE, SPORER, SPORE
@@ -669,7 +663,16 @@ class Logic {
         return true
     }
 
+
+    fun initBeforeMoves() {
+        harvProcess[A_CHAR] = false
+        harvProcess[B_CHAR] = false
+        harvProcess[C_CHAR] = false
+        harvProcess[D_CHAR] = false
+    }
+
     fun move(orgNum: Int): String {
+
         val currentRoot = desk.getMyRoots().sortedBy { desk.organId(it) }.drop(orgNum).first()
         val currentRootOrganId = desk.organRootId(currentRoot)
         log("root: $currentRootOrganId")
@@ -770,6 +773,7 @@ fun mainLoop() {
                 nextInt() // your number of organisms, output an action for each one in any order
             }
 
+            logic.initBeforeMoves()
             for (i in 0 until requiredActionsCount) {
                 val move = logic.move(i)
                 println(move)
