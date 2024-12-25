@@ -58,6 +58,7 @@ data class ProteinStock(val a: Int, val b: Int, val c: Int, val d: Int) {
         val HARVESTER = ProteinStock(0, 0, 1, 1)
         val TENTACLE = ProteinStock(0, 1, 1, 0)
         val SPORER = ProteinStock(0, 1, 0, 1)
+        val SPORE_LIMIT = ProteinStock(1, 1, 1, 1)
     }
 }
 
@@ -334,6 +335,10 @@ class Logic {
 
     fun doSpore(currentRootOrganId: Int): Move? {
         val sporeState = sporeStat.getOrPut(currentRootOrganId) { SporeState.NONE }
+
+        if (!desk.myStock.enoughFor(ProteinStock.SPORE_LIMIT)) {
+            log("spore limit")
+        }
 
         when(sporeState) {
             SporeState.NONE -> {
@@ -742,7 +747,7 @@ fun mainLoop() {
 }
 
 fun main() {
-    log("silver-arena-5")
+    log("silver-arena-6-rc")
     mainLoop()
 }
 
