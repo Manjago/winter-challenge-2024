@@ -184,6 +184,19 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
         return result
     }
 
+    fun neighbours2(point: GridPoint): List<GridPoint> {
+        val result = mutableSetOf<GridPoint>()
+        for (dir in directions) {
+            val pretender = point + dir
+            if (inbound(pretender)) {
+                val element = GridPoint(pretender.x, pretender.y)
+                result.add(element)
+                result.addAll(neighbours(element))
+            }
+        }
+        return result.toList()
+    }
+
     companion object {
         val NORTH = GridPoint(0, -1)
         val SOUTH = GridPoint(0, 1)
@@ -430,6 +443,34 @@ class Logic {
         }
     }
 
+    fun bfs(from: GridPoint, maxSize: Int) : List<List<GridPoint>> {
+        val result = mutableListOf<List<GridPoint>>()
+        val queue = ArrayDeque<List<GridPoint>>()
+        queue.add(listOf(from))
+        val seen = mutableSetOf<GridPoint>()
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            val lastElement = current.last()
+
+            if (seen.contains(lastElement)) {
+                continue
+            }
+            seen += lastElement
+
+            if (current.size > maxSize) {
+                continue
+            }
+
+            result += current
+
+            desk.neighbours(lastElement).asSequence().filter { desk.isSpaceOrProtein(it) }.forEach { neighbour ->
+                queue.add(current + neighbour)
+            }
+        }
+
+        return result
+    }
+
     fun doTentacles(currentRootOrganId: Int): Move? {
 
         if (!desk.myStock.enoughFor(ProteinStock.TENTACLE)) {
@@ -437,17 +478,36 @@ class Logic {
             return null
         }
 
+        val alarm = desk.getMyOrgans(currentRootOrganId).asSequence()
+            .flatMap {
+                desk.neighbours(it).asSequence().filter { desk.isSpaceOrProtein(it) }
+                    .filter { desk.neighbours2(it).asSequence().any { desk.isEnemyTentacle(it) } }
+            }.toList()
+
+
+        if (alarm.isNotEmpty()) {
+            val enemyTentaclePath = bfs(alarm.first(), 2).asSequence()
+                .firstOrNull { it.size == 2 && desk.isEnemyTentacle(it.last()) }
+            if (enemyTentaclePath == null) {
+                log("alarm but i fail")
+            } else {
+                val organ = desk.neighbours(enemyTentaclePath.first()).asSequence().first {
+                    desk.isReallyMy(it, currentRootOrganId)
+                }
+                log("alarm ten from $organ grow ${enemyTentaclePath.first()} for ${enemyTentaclePath[1]}")
+                return Move.Tentacle(organ, enemyTentaclePath.first(), enemyTentaclePath[1])
+            }
+
+
+        }
+
+
         val placeForTentacles: List<GridPoint> = desk.getEnemyOrgans().asSequence()
             // near enemy
             .flatMap {
                 desk.neighbours(it).asSequence().filter { desk.isSpaceOrProtein(it) }
                     .filter { desk.neighbours(it).asSequence().any { desk.isReallyMy(it, currentRootOrganId) } }
-            }
-            // not before tentacle
-            .filter {
-                !desk.neighbours(it).asSequence().any { desk.isEnemyTentacle(it) }
-            }
-            .toList()
+            }.toList()
 
         if (placeForTentacles.isEmpty()) {
             log("no room for t")
