@@ -156,12 +156,14 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
         desk.isSpace(point) || desk.isA(point) || desk.isB(point) || desk.isC(point) || desk.isD(point)
 
     fun isProtein(point: GridPoint): Boolean = desk.isA(point) || desk.isB(point) || desk.isC(point) || desk.isD(point)
+    fun isEnemyTentacle(point: GridPoint): Boolean = desk.inbound(point) && desk.isEnemy(point) && desk.isTentacle(point)
     fun isOrgan(point: GridPoint): Boolean =
         grid[point.y][point.x] == Item.ROOT || grid[point.y][point.x] == Item.BASIC || grid[point.y][point.x] == Item.HARVESTER || grid[point.y][point.x] == Item.TENTACLE || grid[point.y][point.x] == Item.SPORER
 
     fun isRoot(point: GridPoint): Boolean = grid[point.y][point.x] == Item.ROOT
     fun isSporer(point: GridPoint): Boolean = grid[point.y][point.x] == Item.SPORER
     fun isHarvester(point: GridPoint): Boolean = grid[point.y][point.x] == Item.HARVESTER
+    fun isTentacle(point: GridPoint): Boolean = grid[point.y][point.x] == Item.TENTACLE
     fun isMy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ME
     fun isReallyMy(point: GridPoint, organRootId: Int): Boolean = isMy(point) && organRootId == organRootId(point)
     fun isEnemy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ENEMY
@@ -436,10 +438,16 @@ class Logic {
         }
 
         val placeForTentacles: List<GridPoint> = desk.getEnemyOrgans().asSequence()
+            // near enemy
             .flatMap {
                 desk.neighbours(it).asSequence().filter { desk.isSpaceOrProtein(it) }
                     .filter { desk.neighbours(it).asSequence().any { desk.isReallyMy(it, currentRootOrganId) } }
-            }.toList()
+            }
+            // not before tentacle
+            .filter {
+                !desk.neighbours(it).asSequence().any { desk.isEnemyTentacle(it) }
+            }
+            .toList()
 
         if (placeForTentacles.isEmpty()) {
             log("no room for t")
