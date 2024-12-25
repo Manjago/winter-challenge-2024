@@ -315,7 +315,7 @@ class Logic {
         val result = mutableListOf<GridPoint>()
 
         result.add(from)
-        var pretender = from;
+        var pretender = from
 
         pretender += dir
         while(desk.inbound(pretender) && desk.isSpaceOrProtein(pretender)) {
@@ -337,16 +337,16 @@ class Logic {
 
         when(sporeState) {
             SporeState.NONE -> {
-                if (!desk.myStock.enoughFor(ProteinStock.SPORER)) {
-                    log("no res for sporer")
-                    return null;
+                if (!desk.myStock.enoughFor(ProteinStock.SPORER + ProteinStock.ROOT)) {
+                    log("no res for sporer and spore")
+                    return null
                 }
                val pretenders = desk.getMyOrgans(currentRootOrganId).asSequence()
                    .flatMap { desk.neighbours(it).asSequence().filter { desk.isSpaceOrProtein(it) } }
                    .toList()
                if (pretenders.isEmpty()) {
                    log("no room for sporer")
-                   return null;
+                   return null
                }
 
                val pretender = pretenders.asSequence().flatMap {
@@ -360,7 +360,7 @@ class Logic {
 
                 if (pretender == null) {
                     log("no good room for sporer")
-                    return null;
+                    return null
                 }
 
                 val organ = desk.neighbours(pretender.first()).asSequence().first {
@@ -375,7 +375,7 @@ class Logic {
 
                 if (!desk.myStock.enoughFor(ProteinStock.ROOT)) {
                     log("no res for SPORE")
-                    return null;
+                    return null
                 }
 
                 val sporer = desk.getMyOrgans(currentRootOrganId).asSequence().firstOrNull {
@@ -394,7 +394,7 @@ class Logic {
                     return Move.Spore(sporer, line.last())
                 } else {
                     log("too short for spore")
-                    return null;
+                    return null
                 }
             }
             SporeState.SPORE -> {
@@ -425,7 +425,7 @@ class Logic {
         }
 
         val minPath = paths.minBy { it.size }
-        log("found 'a' path " + minPath)
+        log("found 'a' path $minPath")
 
         // organ -  ...   - pretender
         // or
