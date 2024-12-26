@@ -435,7 +435,7 @@ class Logic {
     }
 
     fun spaceOrUnusedProtein(it: GridPoint): Boolean {
-        return desk.isSpace(it) || (desk.isProtein(it) || !isSourceUnderHarvester(it))
+        return desk.isSpace(it) || (desk.isProtein(it) && !isSourceUnderHarvester(it))
     }
 
     fun doHarvFor(currentRootOrganId: Int, sourceChar: Char, sourceFun: (GridPoint) -> Boolean): Move? {
@@ -456,7 +456,7 @@ class Logic {
         val myOrgans = desk.getMyOrgans(currentRootOrganId)
 
         val paths = Path.minPathSeq(myOrgans, allAPretenders)
-        { desk.isSpace(it) || (spaceOrUnusedProtein(it) && !sourceFun(it)) }
+        { desk.isSpace(it) || (!sourceFun(it) && spaceOrUnusedProtein(it)) }
         if (paths.isEmpty()) {
             log("not '$sourceChar' path")
             return null
@@ -826,7 +826,7 @@ fun mainLoop() {
 }
 
 fun main() {
-    log("silver-arena-6")
+    log("silver-arena-7-rc")
     mainLoop()
 }
 
