@@ -557,6 +557,20 @@ class Logic {
         return result
     }
 
+    fun tryTentacle(organFrom: GridPoint, growTo: GridPoint, forVictim: GridPoint): Move? {
+        // in front of enemy tentacle?
+        val inFrontOfEnemyTentacle = desk.neighbours(growTo).asSequence().firstOrNull() {
+            desk.isEnemyTentacle(it) && ((it + desk.organDir(it)) == growTo)
+        }
+
+        if (inFrontOfEnemyTentacle != null) {
+            log("in fr of e ten $inFrontOfEnemyTentacle")
+            return null
+        } else {
+            return Move.Tentacle(organFrom, growTo, forVictim)
+        }
+    }
+
     fun doTentacles(currentRootOrganId: Int): Move? {
 
         if (!desk.myStock.enoughFor(ProteinStock.TENTACLE)) {
@@ -581,7 +595,7 @@ class Logic {
                     desk.isReallyMy(it, currentRootOrganId)
                 }
                 log("alarm ten from $organ grow ${enemyTentaclePath.first()} for ${enemyTentaclePath[1]}")
-                return Move.Tentacle(organ, enemyTentaclePath.first(), enemyTentaclePath[1])
+                return tryTentacle(organ, enemyTentaclePath.first(), enemyTentaclePath[1])
             }
 
 
@@ -609,8 +623,11 @@ class Logic {
             TentacleVictim(it, victim, myOrgan)
         }.minBy { desk.organParentId(it.victim) }
 
+        // in front of tentacle ?
+
+
         log("try ten from ${m.organFrom} to ${m.ten} for ${m.victim} with pid ${desk.organParentId(m.victim)}")
-        return Move.Tentacle(m.organFrom, m.ten, m.victim)
+        return tryTentacle(m.organFrom, m.ten, m.victim)
     }
 
     fun List<GridPoint>.selectByDistToCenter(): GridPoint {
