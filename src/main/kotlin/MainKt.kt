@@ -362,7 +362,8 @@ class Logic {
                     return null
                 }
                val pretenders = desk.getMyOrgans(currentRootOrganId).asSequence()
-                   .flatMap { desk.neighbours(it).asSequence().filter { desk.isSpaceOrProtein(it) } }
+                   .flatMap { desk.neighbours(it).asSequence()
+                       .filter { desk.isSpace(it) || (desk.isProtein(it) && !isSourceUnderHarvester(it))} }
                    .toList()
                if (pretenders.isEmpty()) {
                    log("no room for sporer")
