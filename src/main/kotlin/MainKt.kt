@@ -632,8 +632,7 @@ class Logic {
         } else {
             log("grow random")
             val organFrom = desk.getMyOrgans(currentOrganRootId).asSequence()
-                .flatMap { desk.neighbours(it).asSequence()
-                    .filter { spaceOrUnusedProtein(it)}
+                .filter { desk.neighbours(it).any { spaceOrUnusedProtein(it)}
                 }.firstOrNull()
             if (organFrom == null) {
                 log("no organ for idle grow")
