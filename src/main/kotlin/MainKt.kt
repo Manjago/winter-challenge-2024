@@ -426,6 +426,14 @@ class Logic {
         return null
     }
 
+    fun isSourceUnderHarvester(point: GridPoint): Boolean {
+        check(desk.isProtein(point))
+        return desk.neighbours(point).asSequence().any {
+            desk.isHarvester(it) && desk.isMy(it) &&
+                    (desk.organDir(it) + it == point)
+        }
+    }
+
     fun doHarvFor(currentRootOrganId: Int, sourceChar: Char, sourceFun: (GridPoint) -> Boolean): Move? {
 
         if (harvProcess[sourceChar]!!) {
@@ -444,7 +452,7 @@ class Logic {
         val myOrgans = desk.getMyOrgans(currentRootOrganId)
 
         val paths = Path.minPathSeq(myOrgans, allAPretenders)
-        { desk.isSpace(it) || (desk.isProtein(it) && !sourceFun(it)) }
+        { desk.isSpace(it) || (desk.isProtein(it) && !sourceFun(it) && !isSourceUnderHarvester(it)) }
         if (paths.isEmpty()) {
             log("not '$sourceChar' path")
             return null
@@ -469,7 +477,10 @@ class Logic {
             // may be other resource?
             val growTo = minPath[1]
             if (desk.myStock.enoughFor(ProteinStock.IDLE_HARV_LIMIT)) {
-                val mayBeSource = desk.neighbours(growTo).asSequence().filter { desk.isProtein(it) }.firstOrNull()
+                val mayBeSource = desk.neighbours(growTo).asSequence()
+                    .filter { desk.isProtein(it) }
+                    .filter { !isSourceUnderHarvester(it) }
+                    .firstOrNull()
                 if (mayBeSource != null) {
                     log("goto $sourceChar harv, find other source")
                     Move.Harvester(fromOrgan, growTo, mayBeSource)
