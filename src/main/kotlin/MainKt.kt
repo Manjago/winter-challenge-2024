@@ -880,7 +880,7 @@ fun mainLoop() {
 }
 
 fun main() {
-    log("silver-arena-7-rc")
+    log("silver-arena-7")
     mainLoop()
 }
 
