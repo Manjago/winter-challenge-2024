@@ -459,15 +459,28 @@ class Logic {
         // or
         // organ -  pretender
 
-        if (minPath.size == 2) {
-            val fromOrgan = minPath.first()
+        val fromOrgan = minPath.first()
+        return if (minPath.size == 2) {
             val pretender = minPath.last()
             val aSource = desk.neighbours(pretender).asSequence().filter { sourceFun(it) }.first()
             log("first $sourceChar harv")
-            return Move.Harvester(fromOrgan, pretender, aSource)
+            Move.Harvester(fromOrgan, pretender, aSource)
         } else {
-            log("goto $sourceChar harv")
-            return Move.Basic(minPath.first(), minPath[1])
+            // may be other resource?
+            val growTo = minPath[1]
+            if (desk.myStock.enoughFor(ProteinStock.IDLE_HARV_LIMIT)) {
+                val mayBeSource = desk.neighbours(growTo).asSequence().filter { desk.isProtein(it) }.firstOrNull()
+                if (mayBeSource != null) {
+                    log("goto $sourceChar harv, find other source")
+                    Move.Harvester(fromOrgan, growTo, mayBeSource)
+                } else {
+                    log("just goto $sourceChar harv")
+                    Move.Basic(fromOrgan, growTo)
+                }
+            } else {
+                log("goto $sourceChar harv")
+                Move.Basic(fromOrgan, growTo)
+            }
         }
     }
 
