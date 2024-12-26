@@ -41,7 +41,6 @@ fun logFlush() {
 
 data class ProteinStock(val a: Int, val b: Int, val c: Int, val d: Int) {
     fun enoughFor(other: ProteinStock): Boolean {
-        log("cmp $this and $other")
         val diff = this - other
         return diff.notNegative()
     }
@@ -363,7 +362,7 @@ class Logic {
                 }
                val pretenders = desk.getMyOrgans(currentRootOrganId).asSequence()
                    .flatMap { desk.neighbours(it).asSequence()
-                       .filter { desk.isSpace(it) || (desk.isProtein(it) && !isSourceUnderHarvester(it))} }
+                       .filter { spaceOrUnusedProtein(it)} }
                    .toList()
                if (pretenders.isEmpty()) {
                    log("no room for sporer")
@@ -435,6 +434,10 @@ class Logic {
         }
     }
 
+    fun spaceOrUnusedProtein(it: GridPoint): Boolean {
+        return desk.isSpace(it) || (desk.isProtein(it) || !isSourceUnderHarvester(it))
+    }
+
     fun doHarvFor(currentRootOrganId: Int, sourceChar: Char, sourceFun: (GridPoint) -> Boolean): Move? {
 
         if (harvProcess[sourceChar]!!) {
@@ -453,7 +456,7 @@ class Logic {
         val myOrgans = desk.getMyOrgans(currentRootOrganId)
 
         val paths = Path.minPathSeq(myOrgans, allAPretenders)
-        { desk.isSpace(it) || (desk.isProtein(it) && !sourceFun(it) && !isSourceUnderHarvester(it)) }
+        { desk.isSpace(it) || (spaceOrUnusedProtein(it) && !sourceFun(it)) }
         if (paths.isEmpty()) {
             log("not '$sourceChar' path")
             return null
@@ -516,7 +519,9 @@ class Logic {
                 continue
             }
 
-            desk.neighbours(lastElement).asSequence().filter { desk.isSpaceOrProtein(it) }.forEach { neighbour ->
+            desk.neighbours(lastElement).asSequence()
+                .filter {  spaceOrUnusedProtein(it) }
+                .forEach { neighbour ->
                 queue.add(current + neighbour)
             }
         }
@@ -614,28 +619,27 @@ class Logic {
     }
 
     fun justGrow(currentOrganRootId: Int): Move? {
-        val pretenders = desk.getMyOrgans(currentOrganRootId).asSequence().filter {
-            desk.neighbours(it).any { desk.isSpaceOrProteinNotA(it) }
-        }.toList()
+        // paths to enemy
+        val path = desk.getMyOrgans(currentOrganRootId).asSequence()
+            .flatMap { bfsTo(it, desk::isEnemy).asSequence() }
+            .filter { it.size > 2}
+            .filter { desk.isEnemy(it.last()) }
+            .minByOrNull { it.size }
 
-        if (pretenders.isEmpty()) {
-            log("grow fail")
-            return null
-        }
-
-        val route = pretenders.asSequence()
-            .flatMap { bfsTo(it, desk::isProtein) }
-            .filter { it.size > 1}
-            .filter {desk.isSpace(it[1]) }
-            .filter { desk.isProtein(it.last()) }
-            .firstOrNull()
-
-        val (organFrom, next) = if (route != null) {
-            log("route fr ${route.first()} to ${route[1]} cz ${route.last()}")
-            route.first() to route[1]
+        val (organFrom, next) = if (path != null) {
+            log("route  ${path.first()} -> ${path[1]} cz ${path.last()}")
+            path.first() to path[1]
         } else {
-            val organFrom = pretenders.random()
-            val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpaceOrProteinNotA(it) }.toList().random()
+            log("grow random")
+            val organFrom = desk.getMyOrgans(currentOrganRootId).asSequence()
+                .flatMap { desk.neighbours(it).asSequence()
+                    .filter { spaceOrUnusedProtein(it)}
+                }.firstOrNull()
+            if (organFrom == null) {
+                log("no organ for idle grow")
+                return null
+            }
+            val next = desk.neighbours(organFrom).asSequence().filter { spaceOrUnusedProtein(it) }.first()
             organFrom to next
         }
 
@@ -653,7 +657,6 @@ class Logic {
             log("idle basic")
             Move.Basic(organFrom, next).also { log("justGrow") }
         }
-
     }
 
     fun agressiveGrow(currentOrganRootId: Int): Move? {
@@ -712,7 +715,7 @@ class Logic {
 
         val currentRoot = desk.getMyRoots().sortedBy { desk.organId(it) }.drop(orgNum).first()
         val currentRootOrganId = desk.organRootId(currentRoot)
-        log("root: $currentRootOrganId, stock: ${desk.myStock}")
+        log("ROOT: $currentRootOrganId, stock: ${desk.myStock}")
 
         //@formatter:off
         val result =
