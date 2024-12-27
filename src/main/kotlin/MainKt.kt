@@ -499,11 +499,11 @@ class Logic {
                     tryHarvester(fromOrgan, growTo, mayBeSource)
                 } else {
                     log("just goto $sourceChar harv")
-                    tryBasic(fromOrgan, growTo)
+                    tryBasic(fromOrgan, growTo, true)
                 }
             } else {
                 log("goto $sourceChar harv")
-                tryBasic(fromOrgan, growTo)
+                tryBasic(fromOrgan, growTo, true)
             }
         }
     }
