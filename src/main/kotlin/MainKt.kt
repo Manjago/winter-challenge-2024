@@ -536,7 +536,7 @@ class Logic {
         return result
     }
 
-    fun isInFrontOfEnemyTentacle(growTo: GridPoint): Boolean = inFrontOfEnemyTentacle(growTo) == null
+    fun isInFrontOfEnemyTentacle(growTo: GridPoint): Boolean = inFrontOfEnemyTentacle(growTo) != null
 
     fun inFrontOfEnemyTentacle(growTo: GridPoint): GridPoint? = desk.neighbours(growTo).asSequence().firstOrNull {
         desk.isEnemyTentacle(it) && ((it + desk.organDir(it)) == growTo)
