@@ -632,7 +632,7 @@ class Logic {
             }.minByOrNull { it.size }
 
         if (pathToEnemy == null) {
-            log("spim - not need t")
+            log("spim - not need t $debugString")
             return null
         } else {
             log("path to enemy $debugString size ${pathToEnemy.size}")
