@@ -143,8 +143,8 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
 
     fun getMyOrgans(organRootId: Int): Sequence<GridPoint> =
         allPoints.asSequence().filter { isOrgan(it) && isReallyMy(it, organRootId) }
-    fun getEnemyOrgans(): Sequence<GridPoint> =
-        allPoints.asSequence().filter { isOrgan(it) && isEnemy(it) }
+
+    fun getEnemyOrgans(): Sequence<GridPoint> = allPoints.asSequence().filter { isOrgan(it) && isEnemy(it) }
 
     fun getMyRoots(): Sequence<GridPoint> = allPoints.asSequence().filter { isRoot(it) && isMy(it) }
     fun getEnemyRoots(): Sequence<GridPoint> = allPoints.asSequence().filter { isRoot(it) && isEnemy(it) }
@@ -162,7 +162,9 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
         desk.isSpace(point) || desk.isA(point) || desk.isB(point) || desk.isC(point) || desk.isD(point)
 
     fun isProtein(point: GridPoint): Boolean = desk.isA(point) || desk.isB(point) || desk.isC(point) || desk.isD(point)
-    fun isEnemyTentacle(point: GridPoint): Boolean = desk.inbound(point) && desk.isEnemy(point) && desk.isTentacle(point)
+    fun isEnemyTentacle(point: GridPoint): Boolean =
+        desk.inbound(point) && desk.isEnemy(point) && desk.isTentacle(point)
+
     fun isOrgan(point: GridPoint): Boolean =
         grid[point.y][point.x] == Item.ROOT || grid[point.y][point.x] == Item.BASIC || grid[point.y][point.x] == Item.HARVESTER || grid[point.y][point.x] == Item.TENTACLE || grid[point.y][point.x] == Item.SPORER
 
@@ -216,9 +218,15 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
 
 }
 
+fun dirPointFromDiff(from: GridPoint, to: GridPoint?): GridPoint = if (to != null) {
+    normalizeDirPoint(to - from)
+} else {
+    Desk.NORTH
+}
+
 sealed interface Move {
 
-    fun toProtocolMove() : String
+    fun toProtocolMove(): String
 
     enum class Wait : Move {
         INSTANCE {
@@ -236,10 +244,10 @@ sealed interface Move {
         }
     }
 
-    class Harvester(val organFrom: GridPoint, val growTo: GridPoint, val forSource: GridPoint) : Move {
+    class Harvester(val organFrom: GridPoint, val growTo: GridPoint, val forSource: GridPoint?) : Move {
         override fun toProtocolMove(): String {
             desk.myStock -= ProteinStock.HARVESTER
-            val dir = normalizeDirPoint(forSource - growTo)
+            val dir = dirPointFromDiff(growTo, forSource)
             val dirChar = dirCharByDirPoint(dir)
             val organId = desk.organId(organFrom)
             val xTo = growTo.x
@@ -247,10 +255,11 @@ sealed interface Move {
             return "GROW $organId $xTo $yTo HARVESTER $dirChar"
         }
     }
-    class Sporer(val organFrom: GridPoint, val growTo: GridPoint, val forSource: GridPoint) : Move {
+
+    class Sporer(val organFrom: GridPoint, val growTo: GridPoint, val forSource: GridPoint?) : Move {
         override fun toProtocolMove(): String {
             desk.myStock -= ProteinStock.SPORER
-            val dir = normalizeDirPoint(forSource - growTo)
+            val dir = dirPointFromDiff(growTo, forSource)
             val dirChar = dirCharByDirPoint(dir)
             val organId = desk.organId(organFrom)
             val xTo = growTo.x
@@ -258,6 +267,7 @@ sealed interface Move {
             return "GROW $organId $xTo $yTo SPORER $dirChar"
         }
     }
+
     class Spore(val organFrom: GridPoint, val growTo: GridPoint) : Move {
         override fun toProtocolMove(): String {
             desk.myStock -= ProteinStock.ROOT
@@ -268,9 +278,10 @@ sealed interface Move {
         }
     }
 
-    class Tentacle(val organFrom: GridPoint, val growTo: GridPoint, val forVictim: GridPoint) : Move {
+    class Tentacle(val organFrom: GridPoint, val growTo: GridPoint, val forVictim: GridPoint?) : Move {
         override fun toProtocolMove(): String {
-            val dir = normalizeDirPoint(forVictim - growTo)
+
+            val dir = dirPointFromDiff(growTo, forVictim)
             val dirChar = dirCharByDirPoint(dir)
             val organId = desk.organId(organFrom)
             val xTo = growTo.x
@@ -325,14 +336,14 @@ class Logic {
 
     val sporeStat = mutableMapOf<Int, SporeState>()
 
-    fun line(from: GridPoint, dir: GridPoint, noToSporer: Boolean = false) : List<GridPoint> {
+    fun line(from: GridPoint, dir: GridPoint, noToSporer: Boolean = false): List<GridPoint> {
         val result = mutableListOf<GridPoint>()
 
         result.add(from)
         var pretender = from
 
         pretender += dir
-        while(desk.inbound(pretender) && desk.isSpaceOrProtein(pretender)) {
+        while (desk.inbound(pretender) && desk.isSpaceOrProtein(pretender)) {
             result.add(pretender)
             pretender += dir
         }
@@ -354,29 +365,25 @@ class Logic {
             return null
         }
 
-        when(sporeState) {
+        when (sporeState) {
             SporeState.NONE -> {
                 if (!desk.myStock.enoughFor(ProteinStock.SPORER + ProteinStock.ROOT)) {
                     log("no res for sporer and spore")
                     return null
                 }
-               val pretenders = desk.getMyOrgans(currentRootOrganId).asSequence()
-                   .flatMap { desk.neighbours(it).asSequence()
-                       .filter { spaceOrUnusedProtein(it)} }
-                   .toList()
-               if (pretenders.isEmpty()) {
-                   log("no room for sporer")
-                   return null
-               }
+                val pretenders = desk.getMyOrgans(currentRootOrganId).asSequence().flatMap {
+                        desk.neighbours(it).asSequence().filter { spaceOrUnusedProtein(it) }
+                    }.toList()
+                if (pretenders.isEmpty()) {
+                    log("no room for sporer")
+                    return null
+                }
 
-               val pretender = pretenders.asSequence().flatMap {
+                val pretender = pretenders.asSequence().flatMap {
                     listOf(
-                    line(it, Desk.NORTH),
-                    line(it, Desk.EAST),
-                    line(it, Desk.WEST),
-                    line(it, Desk.SOUTH))
-                }.filter { it.size > 1 }
-                   .maxByOrNull { it.size }
+                        line(it, Desk.NORTH), line(it, Desk.EAST), line(it, Desk.WEST), line(it, Desk.SOUTH)
+                    )
+                }.filter { it.size > 1 }.maxByOrNull { it.size }
 
                 if (pretender == null) {
                     log("no good room for sporer")
@@ -384,13 +391,15 @@ class Logic {
                 }
 
                 val organ = desk.neighbours(pretender.first()).asSequence().first {
-                    desk.isReallyMy(it, currentRootOrganId) && desk.isOrgan(it) }
+                    desk.isReallyMy(it, currentRootOrganId) && desk.isOrgan(it)
+                }
 
 
                 log("set sporer from $organ to ${pretender.first()} for ${pretender.last()}")
                 sporeStat[currentRootOrganId] = SporeState.SPORER
                 return trySporer(organ, pretender.first(), pretender.last())
             }
+
             SporeState.SPORER -> {
 
                 if (!desk.myStock.enoughFor(ProteinStock.ROOT)) {
@@ -417,6 +426,7 @@ class Logic {
                     return null
                 }
             }
+
             SporeState.SPORE -> {
                 log("already make spore")
                 return null
@@ -429,8 +439,7 @@ class Logic {
     fun isSourceUnderHarvester(point: GridPoint): Boolean {
         check(desk.isProtein(point))
         return desk.neighbours(point).asSequence().any {
-            desk.isHarvester(it) && desk.isMy(it) &&
-                    (desk.organDir(it) + it == point)
+            desk.isHarvester(it) && desk.isMy(it) && (desk.organDir(it) + it == point)
         }
     }
 
@@ -455,8 +464,10 @@ class Logic {
 
         val myOrgans = desk.getMyOrgans(currentRootOrganId)
 
-        val paths = Path.minPathSeq(myOrgans, allAPretenders)
-        { desk.isSpace(it) || (!sourceFun(it) && spaceOrUnusedProtein(it)) }
+        val paths = Path.minPathSeq(
+            myOrgans,
+            allAPretenders
+        ) { desk.isSpace(it) || (!sourceFun(it) && spaceOrUnusedProtein(it)) }
         if (paths.isEmpty()) {
             log("not '$sourceChar' path")
             return null
@@ -481,10 +492,8 @@ class Logic {
             // may be other resource?
             val growTo = minPath[1]
             if (desk.myStock.enoughFor(ProteinStock.IDLE_HARV_LIMIT)) {
-                val mayBeSource = desk.neighbours(growTo).asSequence()
-                    .filter { desk.isProtein(it) }
-                    .filter { !isSourceUnderHarvester(it) }
-                    .firstOrNull()
+                val mayBeSource = desk.neighbours(growTo).asSequence().filter { desk.isProtein(it) }
+                    .filter { !isSourceUnderHarvester(it) }.firstOrNull()
                 if (mayBeSource != null) {
                     log("goto $sourceChar harv, find other source")
                     tryHarvester(fromOrgan, growTo, mayBeSource)
@@ -499,7 +508,7 @@ class Logic {
         }
     }
 
-    fun bfsTo(from: GridPoint, target: (GridPoint) -> Boolean) : List<List<GridPoint>> {
+    fun bfsTo(from: GridPoint, target: (GridPoint) -> Boolean): List<List<GridPoint>> {
         val result = mutableListOf<List<GridPoint>>()
         val queue = ArrayDeque<List<GridPoint>>()
         queue.add(listOf(from))
@@ -519,17 +528,15 @@ class Logic {
                 continue
             }
 
-            desk.neighbours(lastElement).asSequence()
-                .filter {  spaceOrUnusedProtein(it) }
-                .forEach { neighbour ->
-                queue.add(current + neighbour)
-            }
+            desk.neighbours(lastElement).asSequence().filter { spaceOrUnusedProtein(it) }.forEach { neighbour ->
+                    queue.add(current + neighbour)
+                }
         }
 
         return result
     }
 
-    fun bfs(from: GridPoint, maxSize: Int) : List<List<GridPoint>> {
+    fun bfs(from: GridPoint, maxSize: Int): List<List<GridPoint>> {
         val result = mutableListOf<List<GridPoint>>()
         val queue = ArrayDeque<List<GridPoint>>()
         queue.add(listOf(from))
@@ -558,12 +565,12 @@ class Logic {
     }
 
     fun inFrontOfEnemyTentacle(growTo: GridPoint): GridPoint? {
-        return desk.neighbours(growTo).asSequence().firstOrNull() {
+        return desk.neighbours(growTo).asSequence().firstOrNull {
             desk.isEnemyTentacle(it) && ((it + desk.organDir(it)) == growTo)
         }
     }
 
-    fun tryTentacle(organFrom: GridPoint, growTo: GridPoint, forVictim: GridPoint): Move? {
+    fun tryTentacle(organFrom: GridPoint, growTo: GridPoint, forVictim: GridPoint?): Move? {
         // in front of enemy tentacle?
         val inFrontOfEnemyTentacle = inFrontOfEnemyTentacle(growTo)
 
@@ -575,7 +582,7 @@ class Logic {
         }
     }
 
-    fun tryHarvester(organFrom: GridPoint, growTo: GridPoint, forSource: GridPoint): Move? {
+    fun tryHarvester(organFrom: GridPoint, growTo: GridPoint, forSource: GridPoint?): Move? {
         // in front of enemy tentacle?
         val inFrontOfEnemyTentacle = inFrontOfEnemyTentacle(growTo)
 
@@ -587,7 +594,7 @@ class Logic {
         }
     }
 
-    fun trySporer(organFrom: GridPoint, growTo: GridPoint, forSource: GridPoint): Move? {
+    fun trySporer(organFrom: GridPoint, growTo: GridPoint, forSource: GridPoint?): Move? {
         // in front of enemy tentacle?
         val inFrontOfEnemyTentacle = inFrontOfEnemyTentacle(growTo)
 
@@ -599,7 +606,7 @@ class Logic {
         }
     }
 
-    fun tryBasic(organFrom: GridPoint, growTo: GridPoint): Move? {
+    fun tryBasic(organFrom: GridPoint, growTo: GridPoint, forceOthers: Boolean = false): Move? {
         // in front of enemy tentacle?
         val inFrontOfEnemyTentacle = inFrontOfEnemyTentacle(growTo)
 
@@ -607,7 +614,33 @@ class Logic {
             log("bas in fr of e ten $inFrontOfEnemyTentacle")
             return null
         } else {
-            return Move.Basic(organFrom, growTo)
+
+            return if (desk.myStock.enoughFor(ProteinStock.BASIC)) {
+                Move.Basic(organFrom, growTo)
+            } else {
+                when {
+                    !forceOthers -> null.also { log("no res for basic path") }
+                    desk.myStock.enoughFor(ProteinStock.TENTACLE) -> tryTentacle(
+                        organFrom,
+                        growTo,
+                        null
+                    ).also { log("use ten inst bas") }
+
+                    desk.myStock.enoughFor(ProteinStock.HARVESTER) -> tryHarvester(
+                        organFrom,
+                        growTo,
+                        null
+                    ).also { log("use harv inst bas") }
+
+                    desk.myStock.enoughFor(ProteinStock.SPORER) -> trySporer(
+                        organFrom,
+                        growTo,
+                        null
+                    ).also { log("use spr inst bas") }
+
+                    else -> null.also { log("no res all for basic path") }
+                }
+            }
         }
     }
 
@@ -618,16 +651,15 @@ class Logic {
             return null
         }
 
-        val alarm = desk.getMyOrgans(currentRootOrganId).asSequence()
-            .flatMap {
+        val alarm = desk.getMyOrgans(currentRootOrganId).asSequence().flatMap {
                 desk.neighbours(it).asSequence().filter { desk.isSpaceOrProtein(it) }
                     .filter { desk.neighbours2(it).asSequence().any { desk.isEnemyTentacle(it) } }
             }.toList()
 
 
         if (alarm.isNotEmpty()) {
-            val enemyTentaclePath = bfs(alarm.first(), 2).asSequence()
-                .firstOrNull { it.size == 2 && desk.isEnemyTentacle(it.last()) }
+            val enemyTentaclePath =
+                bfs(alarm.first(), 2).asSequence().firstOrNull { it.size == 2 && desk.isEnemyTentacle(it.last()) }
             if (enemyTentaclePath == null) {
                 log("alarm but i fail")
             } else {
@@ -674,11 +706,8 @@ class Logic {
 
     fun justGrow(currentOrganRootId: Int): Move? {
         // paths to enemy
-        val path = desk.getMyOrgans(currentOrganRootId).asSequence()
-            .flatMap { bfsTo(it, desk::isEnemy).asSequence() }
-            .filter { it.size > 2}
-            .filter { inFrontOfEnemyTentacle(it[1]) == null}
-            .filter { desk.isEnemy(it.last()) }
+        val path = desk.getMyOrgans(currentOrganRootId).asSequence().flatMap { bfsTo(it, desk::isEnemy).asSequence() }
+            .filter { it.size > 2 }.filter { inFrontOfEnemyTentacle(it[1]) == null }.filter { desk.isEnemy(it.last()) }
             .minByOrNull { it.size }
 
         val (organFrom, next) = if (path != null) {
@@ -686,8 +715,8 @@ class Logic {
             path.first() to path[1]
         } else {
             log("grow random")
-            val organFrom = desk.getMyOrgans(currentOrganRootId).asSequence()
-                .filter { desk.neighbours(it).any { spaceOrUnusedProtein(it)}
+            val organFrom = desk.getMyOrgans(currentOrganRootId).asSequence().filter {
+                    desk.neighbours(it).any { spaceOrUnusedProtein(it) }
                 }.firstOrNull()
             if (organFrom == null) {
                 log("no organ for idle grow")
@@ -725,7 +754,8 @@ class Logic {
         }
 
         val organFrom = pretenders.selectByDistToCenter()
-        val next = desk.neighbours(organFrom).asSequence().filter { desk.isSpaceOrProtein(it) && (inFrontOfEnemyTentacle(it) == null) }.toList().random()
+        val next = desk.neighbours(organFrom).asSequence()
+            .filter { desk.isSpaceOrProtein(it) && (inFrontOfEnemyTentacle(it) == null) }.toList().random()
         return tryBasic(organFrom, next).also { log("aggrGrow") }
     }
 
@@ -880,7 +910,7 @@ fun mainLoop() {
 }
 
 fun main() {
-    log("silver-arena-7")
+    log("silver-arena-8-rc")
     mainLoop()
 }
 
