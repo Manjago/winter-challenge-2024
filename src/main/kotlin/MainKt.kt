@@ -536,10 +536,10 @@ class Logic {
         return result
     }
 
-    fun inFrontOfEnemyTentacle(growTo: GridPoint): GridPoint? {
-        return desk.neighbours(growTo).asSequence().firstOrNull {
-            desk.isEnemyTentacle(it) && ((it + desk.organDir(it)) == growTo)
-        }
+    fun isInFrontOfEnemyTentacle(growTo: GridPoint): Boolean = inFrontOfEnemyTentacle(growTo) == null
+
+    fun inFrontOfEnemyTentacle(growTo: GridPoint): GridPoint? = desk.neighbours(growTo).asSequence().firstOrNull {
+        desk.isEnemyTentacle(it) && ((it + desk.organDir(it)) == growTo)
     }
 
     fun tryTentacle(organFrom: GridPoint, growTo: GridPoint, forVictim: GridPoint?): Move? {
@@ -625,10 +625,10 @@ class Logic {
 
         val pathToEnemy = desk.getMyOrgans(currentRootOrganId).asSequence()
             .flatMap {
-                bfsTo(it, selector, ::spaceOrProtein).asSequence()
+                bfsTo(it, selector) { spaceOrProtein(it) && !isInFrontOfEnemyTentacle(it) }.asSequence()
                     .filter { it.size > 2 }
                     .filter { it.size <= sensivity }
-                    .filter { inFrontOfEnemyTentacle(it[1]) == null }
+                    .filter { !isInFrontOfEnemyTentacle(it[1]) }
             }.minByOrNull { it.size }
 
         if (pathToEnemy == null) {
@@ -653,7 +653,7 @@ class Logic {
     fun justGrow(currentOrganRootId: Int): Move? {
         // paths to enemy
         val path = desk.getMyOrgans(currentOrganRootId).asSequence().flatMap { bfsTo(it, desk::isEnemy, ::spaceOrUnusedProtein).asSequence() }
-            .filter { it.size > 2 }.filter { inFrontOfEnemyTentacle(it[1]) == null }.filter { desk.isEnemy(it.last()) }
+            .filter { it.size > 2 }.filter { !isInFrontOfEnemyTentacle(it[1]) }.filter { desk.isEnemy(it.last()) }
             .minByOrNull { it.size }
 
         val (organFrom, next) = if (path != null) {
@@ -691,7 +691,7 @@ class Logic {
     fun agressiveGrow(currentOrganRootId: Int): Move? {
 
         val pretenders = desk.getMyOrgans(currentOrganRootId).asSequence().filter {
-            desk.neighbours(it).any { desk.isSpaceOrProtein(it) && (inFrontOfEnemyTentacle(it) == null) }
+            desk.neighbours(it).any { desk.isSpaceOrProtein(it) && !isInFrontOfEnemyTentacle(it) }
         }.toList()
 
         if (pretenders.isEmpty()) {
@@ -701,7 +701,7 @@ class Logic {
 
         val organFrom = pretenders.selectByDistToCenter()
         val next = desk.neighbours(organFrom).asSequence()
-            .filter { desk.isSpaceOrProtein(it) && (inFrontOfEnemyTentacle(it) == null) }.toList().random()
+            .filter { desk.isSpaceOrProtein(it) && !isInFrontOfEnemyTentacle(it) }.toList().random()
         return tryBasic(organFrom, next).also { log("aggrGrow") }
     }
 
@@ -857,7 +857,7 @@ fun mainLoop() {
 }
 
 fun main() {
-    log("gold-arena-1")
+    log("gold-arena-2-rc")
     mainLoop()
 }
 
