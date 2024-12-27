@@ -616,10 +616,21 @@ class Logic {
         }
     }
 
-    fun doTentacles2(currentRootOrganId: Int, sensivity: Int, debugString: String, selector: (GridPoint) -> Boolean): Move? {
+    fun GridPoint.level(): Int {
+        val organParentId = desk.organParentId(this)
+        if (0 == organParentId) {
+            return 1
+        } else {
+            val parentOrgan = desk.allPoints.first { desk.organId(it) == organParentId }
+            return 1 + parentOrgan.level()
+        }
+    }
+
+
+    fun doTentacles2(currentRootOrganId: Int, sensivity: Int, logString: String, selector: (GridPoint) -> Boolean): Move? {
 
         if (!desk.myStock.enoughFor(ProteinStock.TENTACLE)) {
-            log("no energy for t $debugString")
+            log("no energy for t $logString")
             return null
         }
 
@@ -629,19 +640,19 @@ class Logic {
                     .filter { it.size > 2 }
                     .filter { it.size <= sensivity }
                     .filter { !isInFrontOfEnemyTentacle(it[1]) }
-            }.minByOrNull { it.size }
+            }.minByOrNull { it.size * 10000 + it.last().level() }
 
         if (pathToEnemy == null) {
-            log("spim - not need t $debugString")
+            log("spim - not need t $logString")
             return null
         } else {
-            log("path to enemy $debugString size ${pathToEnemy.size}")
+            log("path to enemy $logString size ${pathToEnemy.size}")
         }
 
         val organ = pathToEnemy[0]
         val growTo = pathToEnemy[1]
         val toVictim = pathToEnemy[2]
-        log("alarm $debugString ten from $organ grow $growTo for $toVictim cz ${pathToEnemy.last()}")
+        log("alarm $logString ten from $organ grow $growTo for $toVictim cz ${pathToEnemy.last()}")
         return tryTentacle(organ, growTo, toVictim)
     }
 
@@ -857,7 +868,7 @@ fun mainLoop() {
 }
 
 fun main() {
-    log("gold-arena-2-rc")
+    log("gold-arena-2-rc") // prev  Rank 137 336
     mainLoop()
 }
 
