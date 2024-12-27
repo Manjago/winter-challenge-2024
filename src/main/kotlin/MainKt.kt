@@ -175,6 +175,7 @@ class Desk(val width: Int, val height: Int, val allPoints: List<GridPoint>) {
     fun isMy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ME
     fun isReallyMy(point: GridPoint, organRootId: Int): Boolean = isMy(point) && organRootId == organRootId(point)
     fun isEnemy(point: GridPoint): Boolean = meOrEnemy[point.y][point.x] == MeOrEnemy.ENEMY
+    fun isEnemyTentalce(point: GridPoint): Boolean = isEnemy(point) && isTentacle(point)
     fun organId(point: GridPoint): Int = organIds[point.y][point.x]
     fun organDir(point: GridPoint): GridPoint = organDirs[point.y][point.x].dirPoint
     fun organRootId(point: GridPoint): Int = organRootIds[point.y][point.x]
@@ -615,16 +616,16 @@ class Logic {
         }
     }
 
-    fun doTentacles2(currentRootOrganId: Int, sensivity: Int): Move? {
+    fun doTentacles2(currentRootOrganId: Int, sensivity: Int, debugString: String, selector: (GridPoint) -> Boolean): Move? {
 
         if (!desk.myStock.enoughFor(ProteinStock.TENTACLE)) {
-            log("no energy for t")
+            log("no energy for t $debugString")
             return null
         }
 
         val pathToEnemy = desk.getMyOrgans(currentRootOrganId).asSequence()
             .flatMap {
-                bfsTo(it, desk::isEnemy, ::spaceOrProtein).asSequence()
+                bfsTo(it, selector, ::spaceOrProtein).asSequence()
                     .filter { it.size > 2 }
                     .filter { it.size <= sensivity }
                     .filter { inFrontOfEnemyTentacle(it[1]) == null }
@@ -634,13 +635,13 @@ class Logic {
             log("spim - not need t")
             return null
         } else {
-            log("path to enemy size ${pathToEnemy.size}")
+            log("path to enemy $debugString size ${pathToEnemy.size}")
         }
 
         val organ = pathToEnemy[0]
         val growTo = pathToEnemy[1]
         val toVictim = pathToEnemy[2]
-        log("alarm ten from $organ grow $growTo for $toVictim cz ${pathToEnemy.last()}")
+        log("alarm $debugString ten from $organ grow $growTo for $toVictim cz ${pathToEnemy.last()}")
         return tryTentacle(organ, growTo, toVictim)
     }
 
@@ -749,7 +750,8 @@ class Logic {
         //@formatter:off
         val result =
             doHarvFor(currentRootOrganId, A_CHAR, desk::isA) ?:
-            doTentacles2(currentRootOrganId, 6) ?:
+            doTentacles2(currentRootOrganId, 6, "eten", desk::isEnemyTentacle) ?:
+            doTentacles2(currentRootOrganId, 6, "ereg", desk::isEnemy) ?:
             doHarvFor(currentRootOrganId, C_CHAR, desk::isC) ?:
             doHarvFor(currentRootOrganId, D_CHAR, desk::isD) ?:
             doHarvFor(currentRootOrganId, B_CHAR, desk::isB) ?:
@@ -855,7 +857,7 @@ fun mainLoop() {
 }
 
 fun main() {
-    log("silver-arena-9-rc")
+    log("gold-arena-1")
     mainLoop()
 }
 
