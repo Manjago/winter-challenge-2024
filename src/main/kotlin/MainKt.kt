@@ -713,7 +713,7 @@ class Logic {
         val organFrom = pretenders.selectByDistToCenter()
         val next = desk.neighbours(organFrom).asSequence()
             .filter { desk.isSpaceOrProtein(it) && !isInFrontOfEnemyTentacle(it) }.toList().random()
-        return tryBasic(organFrom, next).also { log("aggrGrow") }
+        return tryBasic(organFrom, next, true).also { log("aggrGrow") }
     }
 
     fun isNeedProteinSource(sourceChar: Char, sourceFun: (GridPoint) -> Boolean): Boolean {
