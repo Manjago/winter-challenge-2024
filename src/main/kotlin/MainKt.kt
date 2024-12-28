@@ -793,8 +793,8 @@ class Logic {
 
         //@formatter:off
         val result =
-            doSpore(currentRootOrganId) ?:
             doTentacles2(currentRootOrganId, 6, "eten", desk::isEnemyTentacle) ?:
+            doSpore(currentRootOrganId) ?:
             doTentacles2(currentRootOrganId, 6, "ereg", desk::isEnemy) ?:
             doHarvFor(currentRootOrganId, A_CHAR, desk::isA) ?:
             doHarvFor(currentRootOrganId, C_CHAR, desk::isC) ?:
