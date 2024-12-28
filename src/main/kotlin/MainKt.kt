@@ -455,56 +455,82 @@ class Logic {
             return null
         }
 
-        if (!isNeedProteinSource(sourceChar, sourceFun)) {
-            log("no need $sourceChar")
-            return null
-        }
+        val needProteinState = isNeedProteinSource(sourceChar, sourceFun)
+        when(needProteinState) {
+            NeedProtein.HAS_HARV -> {
+                log("${NeedProtein.HAS_HARV} $sourceChar")
+                return null
+            }
+            NeedProtein.NO_RES -> {
+                log("${NeedProtein.NO_RES} $sourceChar")
 
-        val allAPretenders = desk.allPoints.asSequence().filter { sourceFun(it) }
-            .flatMap { desk.neighbours(it).filter { desk.isSpace(it) }.asSequence() }.toSet()
-
-        val myOrgans = desk.getMyOrgans(currentRootOrganId)
-
-        val paths = Path.minPathSeq(
-            myOrgans,
-            allAPretenders
-        ) { desk.isSpace(it) || (!sourceFun(it) && spaceOrUnusedProtein(it)) }
-        if (paths.isEmpty()) {
-            log("not '$sourceChar' path")
-            return null
-        }
-
-        val minPath = paths.minBy { it.size }
-        log("found '$sourceChar' path $minPath")
-
-        harvProcess[sourceChar] = true
-
-        // organ -  ...   - pretender
-        // or
-        // organ -  pretender
-
-        val fromOrgan = minPath.first()
-        return if (minPath.size == 2) {
-            val pretender = minPath.last()
-            val aSource = desk.neighbours(pretender).asSequence().filter { sourceFun(it) }.first()
-            log("first $sourceChar harv")
-            tryHarvester(fromOrgan, pretender, aSource)
-        } else {
-            // may be other resource?
-            val growTo = minPath[1]
-            if (desk.myStock.enoughFor(ProteinStock.IDLE_HARV_LIMIT)) {
-                val mayBeSource = desk.neighbours(growTo).asSequence().filter { desk.isProtein(it) }
-                    .filter { !isSourceUnderHarvester(it) }.firstOrNull()
-                if (mayBeSource != null) {
-                    log("goto $sourceChar harv, find other source")
-                    tryHarvester(fromOrgan, growTo, mayBeSource)
+                fun neededRes(point: GridPoint): Boolean = if (desk.myStock.c == 0) {
+                    desk.isC(point)
                 } else {
-                    log("just goto $sourceChar harv")
-                    tryBasic(fromOrgan, growTo, true)
+                    desk.isD(point)
                 }
-            } else {
-                log("goto $sourceChar harv")
-                tryBasic(fromOrgan, growTo, true)
+
+                val route = desk.getMyOrgans(currentRootOrganId).asSequence()
+                    .flatMap { bfsTo(it, ::neededRes,  ::spaceOrUnusedProtein, 5)}
+                    .minByOrNull { it.size }
+
+                return if (route == null) {
+                    log("no route for res $sourceChar")
+                    null
+                } else {
+                    log("forced route for res $sourceChar from ${route.first()} to ${route[1]} cz ${route.last()}")
+                    tryBasic(route.first(), route[1], true)
+                }
+            }
+            NeedProtein.NEED_HARV -> {
+                log("${NeedProtein.NEED_HARV} $sourceChar")
+                val allAPretenders = desk.allPoints.asSequence().filter { sourceFun(it) }
+                    .flatMap { desk.neighbours(it).filter { desk.isSpace(it) }.asSequence() }.toSet()
+
+                val myOrgans = desk.getMyOrgans(currentRootOrganId)
+
+                val paths = Path.minPathSeq(
+                    myOrgans,
+                    allAPretenders
+                ) { desk.isSpace(it) || (!sourceFun(it) && spaceOrUnusedProtein(it)) }
+                if (paths.isEmpty()) {
+                    log("not '$sourceChar' path")
+                    return null
+                }
+
+                val minPath = paths.minBy { it.size }
+                log("found '$sourceChar' path $minPath")
+
+                harvProcess[sourceChar] = true
+
+                // organ -  ...   - pretender
+                // or
+                // organ -  pretender
+
+                val fromOrgan = minPath.first()
+                return if (minPath.size == 2) {
+                    val pretender = minPath.last()
+                    val aSource = desk.neighbours(pretender).asSequence().filter { sourceFun(it) }.first()
+                    log("first $sourceChar harv")
+                    tryHarvester(fromOrgan, pretender, aSource)
+                } else {
+                    // may be other resource?
+                    val growTo = minPath[1]
+                    if (desk.myStock.enoughFor(ProteinStock.IDLE_HARV_LIMIT)) {
+                        val mayBeSource = desk.neighbours(growTo).asSequence().filter { desk.isProtein(it) }
+                            .filter { !isSourceUnderHarvester(it) }.firstOrNull()
+                        if (mayBeSource != null) {
+                            log("goto $sourceChar harv, find other source")
+                            tryHarvester(fromOrgan, growTo, mayBeSource)
+                        } else {
+                            log("just goto $sourceChar harv")
+                            tryBasic(fromOrgan, growTo, true)
+                        }
+                    } else {
+                        log("goto $sourceChar harv")
+                        tryBasic(fromOrgan, growTo, true)
+                    }
+                }
             }
         }
     }
@@ -720,7 +746,10 @@ class Logic {
         return tryBasic(organFrom, next, true).also { log("aggrGrow") }
     }
 
-    fun isNeedProteinSource(sourceChar: Char, sourceFun: (GridPoint) -> Boolean): Boolean {
+    enum class NeedProtein {
+        HAS_HARV, NEED_HARV, NO_RES
+    }
+    fun isNeedProteinSource(sourceChar: Char, sourceFun: (GridPoint) -> Boolean): NeedProtein {
 
         //@formatter:off
         val hasActiveHarv =
@@ -736,16 +765,16 @@ class Logic {
 
         if (hasActiveHarv) {
             log("has harv $sourceChar")
-            return false
+            return NeedProtein.HAS_HARV
         }
 
         if (!desk.myStock.enoughFor(ProteinStock.HARVESTER)) {
             log("no harv res, poor $sourceChar")
-            return false
+            return NeedProtein.NO_RES
         }
 
         log("need harv $sourceChar")
-        return true
+        return NeedProtein.NEED_HARV
     }
 
 
