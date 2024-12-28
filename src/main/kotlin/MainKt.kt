@@ -509,7 +509,7 @@ class Logic {
         }
     }
 
-    fun bfsTo(from: GridPoint, target: (GridPoint) -> Boolean, allowedWalk: (GridPoint) -> Boolean): List<List<GridPoint>> {
+    fun bfsTo(from: GridPoint, target: (GridPoint) -> Boolean, allowedWalk: (GridPoint) -> Boolean, limit: Int? = null): List<List<GridPoint>> {
         val result = mutableListOf<List<GridPoint>>()
         val queue = ArrayDeque<List<GridPoint>>()
         queue.add(listOf(from))
@@ -525,6 +525,10 @@ class Logic {
 
             if (target(lastElement)) {
                 result += current
+                continue
+            }
+
+            if (limit!= null && current.size > limit) {
                 continue
             }
 
@@ -636,7 +640,7 @@ class Logic {
 
         val pathToEnemy = desk.getMyOrgans(currentRootOrganId).asSequence()
             .flatMap {
-                bfsTo(it, selector) { spaceOrProtein(it) && !isInFrontOfEnemyTentacle(it) }.asSequence()
+                bfsTo(it, selector, { spaceOrProtein(it) && !isInFrontOfEnemyTentacle(it) }, sensivity + 1).asSequence()
                     .filter { it.size > 2 }
                     .filter { it.size <= sensivity }
                     .filter { !isInFrontOfEnemyTentacle(it[1]) }
@@ -761,9 +765,9 @@ class Logic {
         //@formatter:off
         val result =
             doSpore(currentRootOrganId) ?:
-            doHarvFor(currentRootOrganId, A_CHAR, desk::isA) ?:
             doTentacles2(currentRootOrganId, 6, "eten", desk::isEnemyTentacle) ?:
             doTentacles2(currentRootOrganId, 6, "ereg", desk::isEnemy) ?:
+            doHarvFor(currentRootOrganId, A_CHAR, desk::isA) ?:
             doHarvFor(currentRootOrganId, C_CHAR, desk::isC) ?:
             doHarvFor(currentRootOrganId, D_CHAR, desk::isD) ?:
             doHarvFor(currentRootOrganId, B_CHAR, desk::isB) ?:
