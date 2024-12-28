@@ -871,4 +871,3 @@ fun main() {
     log("gold-arena-2-rc") // prev  Rank 137 336
     mainLoop()
 }
-
