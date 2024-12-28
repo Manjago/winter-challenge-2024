@@ -337,7 +337,7 @@ class Logic {
 
     val sporeStat = mutableMapOf<Int, SporeState>()
 
-    fun line(from: GridPoint, dir: GridPoint, noToSporer: Boolean = false): List<GridPoint> {
+    fun line(currentRootOrganId: Int, from: GridPoint, dir: GridPoint): List<GridPoint> {
         val result = mutableListOf<GridPoint>()
 
         result.add(from)
@@ -349,8 +349,8 @@ class Logic {
             pretender += dir
         }
 
-        if (desk.inbound(pretender) && desk.isSporer(pretender)) {
-            log("no shoot to sporer")
+        if (desk.inbound(pretender) && desk.isSporer(pretender) && desk.isReallyMy(pretender, currentRootOrganId) ) {
+            log("no shoot to sporer $pretender")
             result.clear()
             result += pretender
         }
@@ -382,7 +382,7 @@ class Logic {
 
                 val pretender = pretenders.asSequence().flatMap {
                     listOf(
-                        line(it, Desk.NORTH), line(it, Desk.EAST), line(it, Desk.WEST), line(it, Desk.SOUTH)
+                        line(currentRootOrganId, it, Desk.NORTH), line(currentRootOrganId, it, Desk.EAST), line(currentRootOrganId,it, Desk.WEST), line(currentRootOrganId,it, Desk.SOUTH)
                     )
                 }.filter { it.size > 1 }.maxByOrNull { it.size }
 
@@ -417,7 +417,7 @@ class Logic {
                     return doSpore(currentRootOrganId)
                 }
 
-                val line = line(sporer, desk.organDir(sporer))
+                val line = line(currentRootOrganId, sporer, desk.organDir(sporer))
                 if (line.size > 1) {
                     log("spore fro $sporer to ${line.last()}")
                     sporeStat[currentRootOrganId] = SporeState.SPORE
