@@ -440,6 +440,7 @@ class Logic {
             return trySporer(organFrom, growTo, forSource)
         }
 
+        log("sp logic no routes")
         return null
     }
 
