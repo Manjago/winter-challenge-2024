@@ -426,7 +426,7 @@ class Logic {
         val route1 = routeFromExistingSporers(currentRootOrganId)
         if (route1 != null) {
             val organFrom = route1.first()
-            val growTo = route1.first { it.notUsedProtein() }
+            val growTo = route1.last { it.notUsedProtein() }
             log("sp logic spore from $organFrom to $growTo")
             return Move.Spore(organFrom, growTo)
         }
@@ -435,7 +435,7 @@ class Logic {
         if (route2 != null) {
             val growTo = route2.first()
             val organFrom = growTo.myOrganFromNeighbours(currentRootOrganId)
-            val forSource = route2.first { it.notUsedProtein() }
+            val forSource = route2.last { it.notUsedProtein() }
             log("sp logic sporer from $organFrom to $growTo cz $forSource")
             return trySporer(organFrom, growTo, forSource)
         }
