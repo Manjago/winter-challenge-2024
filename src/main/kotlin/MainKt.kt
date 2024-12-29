@@ -405,7 +405,7 @@ class Logic {
 
     fun routeFromNotExistingSporers(currentRootOrganId: Int): List<GridPoint>? = desk
         .getMyOrgans(currentRootOrganId).asSequence()
-        .flatMap(desk::neighbours)
+        .flatMap{desk.neighbours(it).filter { desk.isSpaceOrProtein(it) }}
         .filter { !it.notUsedProtein() }
         .flatMap { sporerPretender ->
             Desk.directions.asSequence().map { direction -> openLine(sporerPretender, direction) }
