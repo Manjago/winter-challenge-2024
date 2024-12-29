@@ -371,7 +371,6 @@ class Logic {
         }
 
         check(result.first() == from)
-        check(!desk.isSpaceOrProtein(result.last()))
         return result
     }
 
