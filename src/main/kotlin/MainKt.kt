@@ -570,7 +570,7 @@ class Logic {
             NeedProtein.NEED_HARV -> {
                 log("${NeedProtein.NEED_HARV} $sourceChar")
                 val allAPretenders = desk.allPoints.asSequence().filter { sourceFun(it) }
-                    .flatMap { desk.neighbours(it).filter { desk.isSpace(it) }.asSequence() }.toSet()
+                    .flatMap { desk.neighbours(it).filter { desk.isSpace(it) || it.notUsedProtein()}.asSequence() }.toSet()
 
                 val myOrgans = desk.getMyOrgans(currentRootOrganId)
 
