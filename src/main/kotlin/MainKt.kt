@@ -880,7 +880,7 @@ class Logic {
         //@formatter:off
         val result =
             doTentacles2(currentRootOrganId, 6, "eten", desk::isEnemyTentacle) ?:
-            doSpore2(currentRootOrganId) ?:
+            doSpore(currentRootOrganId) ?:
             doTentacles2(currentRootOrganId, 6, "ereg", desk::isEnemy) ?:
             doHarvFor(currentRootOrganId, A_CHAR, desk::isA) ?:
             doHarvFor(currentRootOrganId, C_CHAR, desk::isC) ?:
@@ -987,6 +987,6 @@ fun mainLoop() {
 }
 
 fun main() {
-    log("gold-arena-4") // prev Rank 148 633
+    log("gold-arena-4.1") // prev Rank 148 633
     mainLoop()
 }
