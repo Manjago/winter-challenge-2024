@@ -368,7 +368,7 @@ class Logic {
                     return null
                 }
                 val pretenders = desk.getMyOrgans(currentRootOrganId).asSequence().flatMap {
-                        desk.neighbours(it).asSequence().filter { spaceOrUnusedProtein(it) }
+                        desk.neighbours(it).asSequence().filter { desk.isSpace(it) }
                     }.toList()
                 if (pretenders.isEmpty()) {
                     log("no room for sporer")
@@ -788,9 +788,10 @@ class Logic {
 
         //@formatter:off
         val result =
-            doTentacles2(currentRootOrganId, 6, "eten", desk::isEnemyTentacle) ?:
+            doTentacles2(currentRootOrganId, 6, "eten6", desk::isEnemyTentacle) ?:
+            doTentacles2(currentRootOrganId, 3, "ereg3", desk::isEnemy) ?:
             doSpore(currentRootOrganId) ?:
-            doTentacles2(currentRootOrganId, 6, "ereg", desk::isEnemy) ?:
+            doTentacles2(currentRootOrganId, 6, "ereg6", desk::isEnemy) ?:
             doHarvFor(currentRootOrganId, A_CHAR, desk::isA) ?:
             doHarvFor(currentRootOrganId, C_CHAR, desk::isC) ?:
             doHarvFor(currentRootOrganId, D_CHAR, desk::isD) ?:
@@ -896,6 +897,6 @@ fun mainLoop() {
 }
 
 fun main() {
-    log("gold-arena-3.7.0") // just cleaned gold-arena-3
+    log("gold-arena-3.7.2") // tentacles sens 3 before spore
     mainLoop()
 }
