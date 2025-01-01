@@ -337,6 +337,12 @@ class Logic {
 
     data class LineWithPrior(val route: List<GridPoint>, val prior: Int)
 
+    fun MutableList<GridPoint>.short() {
+        if (this.isNotEmpty()) {
+            this.removeLast()
+        }
+    }
+
     fun lineWithPrior(from: GridPoint, dir: GridPoint): LineWithPrior {
         val result = mutableListOf<GridPoint>()
 
@@ -349,32 +355,14 @@ class Logic {
             pretender += dir
         }
 
+        result.short()
         val prior = when {
-            desk.inbound(pretender) && desk.isEnemy(pretender) -> {
-                result.removeLast()
-                20000
-            }
+            desk.inbound(pretender) && desk.isEnemy(pretender) -> 20000
             desk.inbound(pretender) && desk.isProtein(pretender) -> 15000
             else -> 10000
         } + result.size
 
         return LineWithPrior(result, prior)
-    }
-
-    fun openLine(from: GridPoint, dir: GridPoint): List<GridPoint> {
-        val result = mutableListOf<GridPoint>()
-
-        result.add(from)
-        var pretender = from
-
-        pretender += dir
-        while (desk.inbound(pretender) && desk.isSpace(pretender)) {
-            result.add(pretender)
-            pretender += dir
-        }
-
-        check(result.first() == from)
-        return result
     }
 
     fun GridPoint.notUsedProtein(): Boolean = desk.isProtein(this) && !isSourceUnderHarvester(this)
@@ -444,7 +432,9 @@ class Logic {
                     return doSpore(currentRootOrganId)
                 }
 
-                val line = line(currentRootOrganId, sporer, desk.organDir(sporer))
+                val lineP = lineWithPrior(sporer, desk.organDir(sporer))
+                log("wanna shoot by $lineP")
+                val line = lineP.route
                 if (line.size > 1) {
                     log("spore fro $sporer to ${line.last()}")
                     sporeStat[currentRootOrganId] = SporeState.SPORE
@@ -928,6 +918,6 @@ fun mainLoop() {
 }
 
 fun main() {
-    log("gold-arena-3.8.1") // spore shoot with prior, shoot to enemy -1 cell
+    log("gold-arena-3.8.2") // spore shoot with prior, shoot to enemy -1 cell
     mainLoop()
 }
