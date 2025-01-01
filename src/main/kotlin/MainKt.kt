@@ -337,7 +337,7 @@ class Logic {
 
     data class LineWithPrior(val route: List<GridPoint>, val prior: Int)
 
-    fun lineWithPrior(currentRootOrganId: Int, from: GridPoint, dir: GridPoint): LineWithPrior {
+    fun lineWithPrior(from: GridPoint, dir: GridPoint): LineWithPrior {
         val result = mutableListOf<GridPoint>()
 
         result.add(from)
@@ -350,7 +350,10 @@ class Logic {
         }
 
         val prior = when {
-            desk.inbound(pretender) && desk.isEnemy(pretender) -> 20000
+            desk.inbound(pretender) && desk.isEnemy(pretender) -> {
+                result.removeLast()
+                20000
+            }
             desk.inbound(pretender) && desk.isProtein(pretender) -> 15000
             else -> 10000
         } + result.size
@@ -400,10 +403,10 @@ class Logic {
 
                 val pretenderP = pretenders.asSequence().flatMap {
                     listOf(
-                        lineWithPrior(currentRootOrganId, it, Desk.NORTH),
-                        lineWithPrior(currentRootOrganId, it, Desk.EAST),
-                        lineWithPrior(currentRootOrganId,it, Desk.WEST),
-                        lineWithPrior(currentRootOrganId,it, Desk.SOUTH)
+                        lineWithPrior(it, Desk.NORTH),
+                        lineWithPrior(it, Desk.EAST),
+                        lineWithPrior(it, Desk.WEST),
+                        lineWithPrior(it, Desk.SOUTH)
                     )
                 }.filter { it.route.size > 1 }.maxByOrNull { it.prior }
 
@@ -925,6 +928,6 @@ fun mainLoop() {
 }
 
 fun main() {
-    log("gold-arena-3.8.0") // spore shoot with prior
+    log("gold-arena-3.8.1") // spore shoot with prior, shoot to enemy -1 cell
     mainLoop()
 }
