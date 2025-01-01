@@ -3,7 +3,7 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
-val version = "3.8.8" // aggressive grow nottouch not used protein (if I win), bug fix
+val version = "3.8.9" // aggressive grow nottouch not used protein (if I win), bug fix
 
 lateinit var desk: Desk
 
@@ -753,14 +753,10 @@ class Logic {
         val oppOrganCount = desk.allPoints.count { desk.isEnemy(it) }
         log("tablo $myOrganCount:$oppOrganCount")
 
-        return if (myOrganCount > oppOrganCount) {
-            agressiveGrow2(
-                currentRootOrganId,
-                "ag1"
-            ) { desk.isSpace(it) || (desk.isProtein(it) && it.notUsedProtein()) && !isInFrontOfEnemyTentacle(it) }
-        } else {
-            agressiveGrow2(currentRootOrganId, "ag2") { desk.isSpaceOrProtein(it) && !isInFrontOfEnemyTentacle(it) }
-        }
+        return agressiveGrow2(
+            currentRootOrganId, "ag1"
+        ) { desk.isSpace(it) || (desk.isProtein(it) && it.notUsedProtein()) && !isInFrontOfEnemyTentacle(it) }
+            ?: agressiveGrow2(currentRootOrganId, "ag2") { desk.isSpaceOrProtein(it) && !isInFrontOfEnemyTentacle(it) }
     }
 
     fun agressiveGrow2(currentOrganRootId: Int, logString: String, filterFun: (GridPoint) -> Boolean): Move? {
