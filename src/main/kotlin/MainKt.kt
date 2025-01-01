@@ -15,7 +15,7 @@ data class GridPoint(val x: Int, val y: Int) {
 
 fun dist(a: GridPoint, b: GridPoint): Int = abs(a.x - b.x) + abs(a.y - b.y)
 
-fun sgn(a: Int): Int = when {3.9.1
+fun sgn(a: Int): Int = when {
     a < 0 -> -1
     a > 0 -> +1
     else -> 0
