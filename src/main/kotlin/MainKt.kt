@@ -3,7 +3,7 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
-val version = "3.8.3-rel" // -1 to spore shoot was Rank 138 638
+val version = "3.8.6-rel" // aggressive grow nottouch not used protein (if I win)
 
 lateinit var desk: Desk
 
@@ -750,9 +750,23 @@ class Logic {
 
     fun agressiveGrow(currentOrganRootId: Int): Move? {
 
-        val pretenders = desk.getMyOrgans(currentOrganRootId).asSequence().filter {
-            desk.neighbours(it).any { desk.isSpaceOrProtein(it) && !isInFrontOfEnemyTentacle(it) }
-        }.toList()
+        val myOrganCount = desk.allPoints.count { desk.isMy(it) }
+        val oppOrganCount = desk.allPoints.count { desk.isEnemy(it) }
+        log("tablo $myOrganCount:$oppOrganCount")
+
+        val pretenders = if (myOrganCount > oppOrganCount) {
+            desk.getMyOrgans(currentOrganRootId).asSequence().filter {
+                desk.neighbours(it).any {
+                    desk.isSpace(it) || (desk.isProtein(it) && it.notUsedProtein())
+                            && !isInFrontOfEnemyTentacle(it) }
+            }.toList()
+        } else {
+            desk.getMyOrgans(currentOrganRootId).asSequence().filter {
+                desk.neighbours(it).any {
+                    desk.isSpaceOrProtein(it)
+                            && !isInFrontOfEnemyTentacle(it) }
+            }.toList()
+        }
 
         if (pretenders.isEmpty()) {
             log("agressive fail")
