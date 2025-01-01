@@ -3,7 +3,7 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
-val version = "3.8.9-rel" // aggressive grow nottouch not used protein (if I win), bug fix
+val version = "3.9.0" // a path do not  destroy protein
 
 lateinit var desk: Desk
 
@@ -508,14 +508,14 @@ class Logic {
             NeedProtein.NEED_HARV -> {
                 log("${NeedProtein.NEED_HARV} $sourceChar")
                 val allAPretenders = desk.allPoints.asSequence().filter { sourceFun(it) }
-                    .flatMap { desk.neighbours(it).filter { desk.isSpace(it) || it.notUsedProtein() }.asSequence() }
+                    .flatMap { desk.neighbours(it).filter { desk.isSpace(it) || desk.isProtein(it) }.asSequence() }
                     .toSet()
 
                 val myOrgans = desk.getMyOrgans(currentRootOrganId)
 
                 val paths = Path.minPathSeq(
                     myOrgans, allAPretenders
-                ) { desk.isSpace(it) || (!sourceFun(it) && spaceOrUnusedProtein(it)) }
+                ) { desk.isSpace(it) || (!sourceFun(it) && spaceOrProtein(it)) }
                 if (paths.isEmpty()) {
                     log("not '$sourceChar' path")
                     return null
