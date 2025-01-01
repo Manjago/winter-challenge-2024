@@ -376,16 +376,6 @@ class Logic {
 
     fun openLine(from: GridPoint): List<GridPoint> = openLine(from, desk.organDir(from))
 
-/*
-    fun GridPoint.routesToUnusedSource(limit: Int): List<List<GridPoint>> =
-        bfsTo(
-            from = this,
-            target = { desk.isProtein(it) && !isSourceUnderHarvester(it)},
-            allowedWalk = desk::isSpaceOrProtein,
-            limit = limit
-        )
-*/
-
     fun others3dirs(organFrom: GridPoint, growTo: GridPoint): List<GridPoint> {
        val dir = desk.organDir(organFrom)
        return Desk.directions - dir
@@ -399,20 +389,35 @@ class Logic {
         .getMyOrgans(currentRootOrganId).asSequence()
         .filter(desk::isSporer)
         .map(::openLine)
-        .filter { it.size > 2 }
-        .filter(::containsUnusedProteins)
-        .maxByOrNull { it.size }
+        .filter { it.size > 1 }
+        .filter { desk.isSpace(it[1]) }
+        .filter { sporeRoute ->
+            val routesForHarvester =
+                bfsTo(sporeRoute[1], { it.notUsedProtein() }, { desk.isSpace(it) }, 2)
+            routesForHarvester.isNotEmpty()
+        }
+        .map {
+            log("EXspor found $it")
+            it }
+        .minByOrNull { it.size }
 
     fun routeFromNotExistingSporers(currentRootOrganId: Int): List<GridPoint>? = desk
         .getMyOrgans(currentRootOrganId).asSequence()
-        .flatMap{desk.neighbours(it).filter { desk.isSpaceOrProtein(it) }}
-        .filter { !it.notUsedProtein() }
+        .filter(desk::isSpace)
         .flatMap { sporerPretender ->
             Desk.directions.asSequence().map { direction -> openLine(sporerPretender, direction) }
         }
         .filter { it.size > 2 }
-        .filter(::containsUnusedProteins)
-        .maxByOrNull { it.size }
+        .filter { desk.isSpace(it[1]) }
+        .filter { sporeRoute ->
+            val routesForHarvester =
+                bfsTo(sporeRoute[1], { it.notUsedProtein() }, { desk.isSpace(it) }, 2)
+            routesForHarvester.isNotEmpty()
+        }
+        .map {
+            log("NEXspor found $it")
+            it }
+        .minByOrNull { it.size }
 
     fun GridPoint.myOrganFromNeighbours(currentRootOrganId: Int): GridPoint = desk.neighbours(this)
         .first { desk.isReallyMy(it, currentRootOrganId) && desk.isOrgan(it) }
@@ -426,16 +431,16 @@ class Logic {
         val route1 = routeFromExistingSporers(currentRootOrganId)
         if (route1 != null) {
             val organFrom = route1.first()
-            val growTo = route1.last { it.notUsedProtein() }
+            val growTo = route1[1]
             log("sp logic spore from $organFrom to $growTo")
             return Move.Spore(organFrom, growTo)
         }
 
         val route2 = routeFromNotExistingSporers(currentRootOrganId)
         if (route2 != null) {
-            val growTo = route2.first()
-            val organFrom = growTo.myOrganFromNeighbours(currentRootOrganId)
-            val forSource = route2.last { it.notUsedProtein() }
+            val growTo = route2[1]
+            val organFrom = route2[0]
+            val forSource = growTo - organFrom
             log("sp logic sporer from $organFrom to $growTo cz $forSource")
             return trySporer(organFrom, growTo, forSource)
         }
@@ -880,7 +885,7 @@ class Logic {
         //@formatter:off
         val result =
             doTentacles2(currentRootOrganId, 6, "eten", desk::isEnemyTentacle) ?:
-            doSpore(currentRootOrganId) ?:
+            doSpore2(currentRootOrganId) ?:
             doTentacles2(currentRootOrganId, 6, "ereg", desk::isEnemy) ?:
             doHarvFor(currentRootOrganId, A_CHAR, desk::isA) ?:
             doHarvFor(currentRootOrganId, C_CHAR, desk::isC) ?:
@@ -987,6 +992,6 @@ fun mainLoop() {
 }
 
 fun main() {
-    log("gold-arena-4.2") // prev Rank 148 633 ( Rank 196 633 )
+    log("gold-arena-5-rc") // prev Rank 148 633 ( Rank 196 633 )
     mainLoop()
 }
