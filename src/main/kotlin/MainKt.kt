@@ -3,7 +3,7 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
-val version = "3.8.9" // aggressive grow nottouch not used protein (if I win), bug fix
+val version = "3.8.9-rel" // aggressive grow nottouch not used protein (if I win), bug fix
 
 lateinit var desk: Desk
 
