@@ -430,6 +430,7 @@ class Logic {
 
         val route1 = routeFromExistingSporers(currentRootOrganId)
         if (route1 != null) {
+            log("route1 $route1")
             val organFrom = route1.first()
             val growTo = route1[1]
             log("sp logic spore from $organFrom to $growTo")
@@ -438,8 +439,7 @@ class Logic {
 
         val route2 = routeFromNotExistingSporers(currentRootOrganId)
         if (route2 != null) {
-            log("route $route2")
-            logFlush()
+            log("route2 $route2")
             val growTo = route2[0]
             val organFrom = desk.neighbours(growTo).first { desk.isOrgan(it) && desk.isReallyMy(it, currentRootOrganId) }
             val forSource = route2[1]
