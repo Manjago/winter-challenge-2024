@@ -987,6 +987,6 @@ fun mainLoop() {
 }
 
 fun main() {
-    log("gold-arena-3") // prev  Rank 125 455
+    log("gold-arena-4") // prev Rank 148 633
     mainLoop()
 }
