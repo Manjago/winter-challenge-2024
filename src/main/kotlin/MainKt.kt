@@ -365,7 +365,7 @@ class Logic {
         var pretender = from
 
         pretender += dir
-        while (desk.isSpaceOrProtein(pretender)) {
+        while (desk.inbound(pretender) && desk.isSpace(pretender)) {
             result.add(pretender)
             pretender += dir
         }
@@ -403,11 +403,11 @@ class Logic {
 
     fun routeFromNotExistingSporers(currentRootOrganId: Int): List<GridPoint>? = desk
         .getMyOrgans(currentRootOrganId).asSequence()
-        .filter(desk::isSpace)
+        .flatMap { desk.neighbours(it).asSequence().filter { desk.isSpace(it) } }
         .flatMap { sporerPretender ->
             Desk.directions.asSequence().map { direction -> openLine(sporerPretender, direction) }
         }
-        .filter { it.size > 2 }
+        .filter { it.size > 1 }
         .filter { desk.isSpace(it[1]) }
         .filter { sporeRoute ->
             val routesForHarvester =
@@ -438,9 +438,11 @@ class Logic {
 
         val route2 = routeFromNotExistingSporers(currentRootOrganId)
         if (route2 != null) {
-            val growTo = route2[1]
-            val organFrom = route2[0]
-            val forSource = growTo - organFrom
+            log("route $route2")
+            logFlush()
+            val growTo = route2[0]
+            val organFrom = desk.neighbours(growTo).first { desk.isOrgan(it) && desk.isReallyMy(it, currentRootOrganId) }
+            val forSource = route2[1]
             log("sp logic sporer from $organFrom to $growTo cz $forSource")
             return trySporer(organFrom, growTo, forSource)
         }
