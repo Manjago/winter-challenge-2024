@@ -335,6 +335,29 @@ class Logic {
         return result
     }
 
+    data class LineWithPrior(val route: List<GridPoint>, val prior: Int)
+
+    fun lineWithPrior(currentRootOrganId: Int, from: GridPoint, dir: GridPoint): LineWithPrior {
+        val result = mutableListOf<GridPoint>()
+
+        result.add(from)
+        var pretender = from
+
+        pretender += dir
+        while (desk.inbound(pretender) && desk.isSpaceOrProtein(pretender)) {
+            result.add(pretender)
+            pretender += dir
+        }
+
+        val prior = when {
+            desk.inbound(pretender) && desk.isEnemy(pretender) -> 20000
+            desk.inbound(pretender) && desk.isProtein(pretender) -> 15000
+            else -> 10000
+        } + result.size
+
+        return LineWithPrior(result, prior)
+    }
+
     fun openLine(from: GridPoint, dir: GridPoint): List<GridPoint> {
         val result = mutableListOf<GridPoint>()
 
@@ -375,17 +398,23 @@ class Logic {
                     return null
                 }
 
-                val pretender = pretenders.asSequence().flatMap {
+                val pretenderP = pretenders.asSequence().flatMap {
                     listOf(
-                        line(currentRootOrganId, it, Desk.NORTH), line(currentRootOrganId, it, Desk.EAST), line(currentRootOrganId,it, Desk.WEST), line(currentRootOrganId,it, Desk.SOUTH)
+                        lineWithPrior(currentRootOrganId, it, Desk.NORTH),
+                        lineWithPrior(currentRootOrganId, it, Desk.EAST),
+                        lineWithPrior(currentRootOrganId,it, Desk.WEST),
+                        lineWithPrior(currentRootOrganId,it, Desk.SOUTH)
                     )
-                }.filter { it.size > 1 }.maxByOrNull { it.size }
+                }.filter { it.route.size > 1 }.maxByOrNull { it.prior }
 
-                if (pretender == null) {
+                if (pretenderP == null) {
                     log("no good room for sporer")
                     return null
+                } else {
+                    log("for sporer route $pretenderP")
                 }
 
+                val pretender = pretenderP.route
                 val organ = desk.neighbours(pretender.first()).asSequence().first {
                     desk.isReallyMy(it, currentRootOrganId) && desk.isOrgan(it)
                 }
@@ -896,6 +925,6 @@ fun mainLoop() {
 }
 
 fun main() {
-    log("gold-arena-3.7.3") // tentacles sens 3 before spore removed; temntacles sens 6 -> 5
+    log("gold-arena-3.8.0") // spore shoot with prior
     mainLoop()
 }
