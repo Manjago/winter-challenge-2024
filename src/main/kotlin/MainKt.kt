@@ -3,6 +3,8 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
+val version = "3.8.3-rel" // -1 to spore shoot was Rank 138 638
+
 lateinit var desk: Desk
 
 data class GridPoint(val x: Int, val y: Int) {
@@ -841,7 +843,7 @@ fun mainLoop() {
     fun BufferedReader.nextLine(): StringTokenizer = StringTokenizer(this.readLine())
 
     BufferedReader(InputStreamReader(System.`in`)).use { br ->
-
+        var firstPrint = true
         val start = System.currentTimeMillis()
         val logic = Logic()
         val (width, height) = with(br.nextLine()) {
@@ -908,7 +910,12 @@ fun mainLoop() {
             logic.initBeforeMoves()
             for (i in 0 until requiredActionsCount) {
                 val move = logic.move(i)
-                println(move)
+                if (firstPrint) {
+                    firstPrint = false
+                    println("$move $version")
+                } else {
+                    println(move)
+                }
             }
             val loopStop = System.currentTimeMillis()
             log("In loop ${loopStop - loopStart} ms")
@@ -918,6 +925,6 @@ fun mainLoop() {
 }
 
 fun main() {
-    log("gold-arena-3.8.2") // spore shoot with prior, shoot to enemy -1 cell
+    log("gold-arena-$version")
     mainLoop()
 }
