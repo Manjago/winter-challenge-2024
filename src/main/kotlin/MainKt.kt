@@ -3,7 +3,7 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
-val version = "4.4.3" // test sentinel
+val version = "4.4.4" // test sentinel and protected
 
 lateinit var desk: Desk
 
@@ -676,21 +676,19 @@ class Logic {
     }
 
 
-    data class PointAndEnemyDist(val point: GridPoint, val dist: Int, val path: List<GridPoint>)
+    fun isProtected(point: GridPoint): Boolean = desk.neighbours(point).asSequence().any { desk.isMy(it) && desk.isTentacle(it)
+            && (desk.organDir(it) + it) == point }
 
     fun sentinel(currentRootOrganId: Int, sensivity: Int): Move? {
 
         val toProtect = desk.getMyOrgans(currentRootOrganId).flatMap {
             desk.neighbours(it).filter { desk.isSpaceOrProtein(it) }
         }.map {
-            val dist = bfsTo(it, {desk.isEnemy(it)}, {desk.isSpaceOrProtein(it)}, sensivity)
+            bfsTo(it, { desk.isEnemy(it) }, { desk.isSpaceOrProtein(it) }, sensivity)
                 .filter { it.isNotEmpty() }.minByOrNull { it.size }
-            if (dist != null) {
-                PointAndEnemyDist(it, dist.size, dist)
-            } else {
-                null
-            }
-        }.filterNotNull().minByOrNull { it.path.size }
+        }.filterNotNull()
+        .filter { !isProtected(it.first()) }
+        .minByOrNull { it.size }
 
         log("toProtect: $toProtect")
 
