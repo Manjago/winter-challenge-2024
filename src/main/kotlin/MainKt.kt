@@ -3,7 +3,7 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
-val version = "4.1.0" // aggressive grow nottouch not used protein (if I win), bug fix
+val version = "4.2.0" // line with prior only space
 
 lateinit var desk: Desk
 
@@ -354,7 +354,7 @@ class Logic {
         var pretender = from
 
         pretender += dir
-        while (desk.inbound(pretender) && desk.isSpaceOrProtein(pretender)) {
+        while (desk.inbound(pretender) && desk.isSpace(pretender)) {
             result.add(pretender)
             pretender += dir
         }
