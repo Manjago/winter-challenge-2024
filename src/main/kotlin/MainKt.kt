@@ -3,7 +3,7 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
-val version = "4.5.2" // try sentinel protect bug fix 2
+val version = "4.5.3" // remove obsolete log
 
 lateinit var desk: Desk
 
@@ -713,8 +713,6 @@ class Logic {
            log("forTentacle $forTentacle")
 
             if (forTentacle != null) {
-                log("nnn " + desk.neighbours(forTentacle))
-                logFlush()
                 val organFrom = desk.neighbours(forTentacle).first{isReallyMyOrgan(it, currentRootOrganId)}
                 log("protect from $organFrom to $forTentacle from $ourVictim")
                 return tryTentacle(organFrom, forTentacle, ourVictim)
