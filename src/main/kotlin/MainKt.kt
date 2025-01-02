@@ -3,7 +3,7 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
-val version = "4.5.1" // try sentinel protect bug fix
+val version = "4.5.2" // try sentinel protect bug fix 2
 
 lateinit var desk: Desk
 
@@ -681,6 +681,9 @@ class Logic {
 
     fun List<GridPoint>.second() = this[1]
 
+    fun isReallyMyOrgan(point: GridPoint, currentRootOrganId: Int) = desk.isReallyMy(point, currentRootOrganId)
+            && desk.isOrgan(point)
+
     fun sentinel(currentRootOrganId: Int, sensivity: Int): Move? {
 
         if (!desk.myStock.enoughFor(ProteinStock.TENTACLE)) {
@@ -704,14 +707,15 @@ class Logic {
             val ourVictim = toProtect.first()
             val enemyIncoming = toProtect.second()
 
-            val forTentacle = desk.neighbours(ourVictim).firstOrNull {
-               spaceOrUnusedProtein(it) && (it != enemyIncoming)
+            val forTentacle = desk.neighbours(ourVictim).firstOrNull { pretender ->
+               spaceOrUnusedProtein(pretender) && (pretender != enemyIncoming) && (desk.neighbours(pretender).any{isReallyMyOrgan(it, currentRootOrganId) })
            }
-            log("forTentacle $forTentacle")
+           log("forTentacle $forTentacle")
 
             if (forTentacle != null) {
-                val organFrom = desk.neighbours(forTentacle).first{desk.isReallyMy(it, currentRootOrganId)
-                        && desk.isOrgan(it)}
+                log("nnn " + desk.neighbours(forTentacle))
+                logFlush()
+                val organFrom = desk.neighbours(forTentacle).first{isReallyMyOrgan(it, currentRootOrganId)}
                 log("protect from $organFrom to $forTentacle from $ourVictim")
                 return tryTentacle(organFrom, forTentacle, ourVictim)
             } else {
