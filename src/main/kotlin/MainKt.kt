@@ -3,7 +3,7 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
-val version = "4.4.0" // real path
+val version = "4.4.1" // real path test path full log
 
 lateinit var desk: Desk
 
@@ -695,6 +695,8 @@ class Logic {
             return null
         }
 
+        log("test path to enemy $logString $pathToEnemyTest")
+
         val pathToEnemyReal = desk.getMyOrgans(currentRootOrganId).asSequence().flatMap {
             bfsTo(it, selector, { spaceOrUnusedProtein(it) && !isInFrontOfEnemyTentacle(it) }, sensivity + 1).asSequence()
                 .filter { it.size > 2 }.filter { it.size <= sensivity }.filter { !isInFrontOfEnemyTentacle(it[1]) }
@@ -705,8 +707,7 @@ class Logic {
             return null
         }
 
-        log("real path to enemy $logString size ${pathToEnemyReal.size}")
-
+        log("real path to enemy $logString size $pathToEnemyReal")
 
         val organ = pathToEnemyReal[0]
         val growTo = pathToEnemyReal[1]
