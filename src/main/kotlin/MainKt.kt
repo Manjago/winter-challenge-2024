@@ -3,7 +3,7 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
-val version = "4.4.2" // test sentinel
+val version = "4.4.3" // test sentinel
 
 lateinit var desk: Desk
 
@@ -690,8 +690,7 @@ class Logic {
             } else {
                 null
             }
-            dist
-        }.filterNotNull().minByOrNull { it.size }
+        }.filterNotNull().minByOrNull { it.path.size }
 
         log("toProtect: $toProtect")
 
