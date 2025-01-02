@@ -3,7 +3,7 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
-val version = "4.5.0" // try sentinel protect
+val version = "4.5.1" // try sentinel protect bug fix
 
 lateinit var desk: Desk
 
@@ -707,9 +707,10 @@ class Logic {
             val forTentacle = desk.neighbours(ourVictim).firstOrNull {
                spaceOrUnusedProtein(it) && (it != enemyIncoming)
            }
+            log("forTentacle $forTentacle")
 
             if (forTentacle != null) {
-                val organFrom = desk.neighbours(ourVictim).first{desk.isReallyMy(it, currentRootOrganId)
+                val organFrom = desk.neighbours(forTentacle).first{desk.isReallyMy(it, currentRootOrganId)
                         && desk.isOrgan(it)}
                 log("protect from $organFrom to $forTentacle from $ourVictim")
                 return tryTentacle(organFrom, forTentacle, ourVictim)
