@@ -3,7 +3,7 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
-val version = "4.4.1" // real path test path full log
+val version = "4.4.2" // test sentinel
 
 lateinit var desk: Desk
 
@@ -676,6 +676,28 @@ class Logic {
     }
 
 
+    data class PointAndEnemyDist(val point: GridPoint, val dist: Int, val path: List<GridPoint>)
+
+    fun sentinel(currentRootOrganId: Int, sensivity: Int): Move? {
+
+        val toProtect = desk.getMyOrgans(currentRootOrganId).flatMap {
+            desk.neighbours(it).filter { desk.isSpaceOrProtein(it) }
+        }.map {
+            val dist = bfsTo(it, {desk.isEnemy(it)}, {desk.isSpaceOrProtein(it)}, sensivity)
+                .filter { it.isNotEmpty() }.minByOrNull { it.size }
+            if (dist != null) {
+                PointAndEnemyDist(it, dist.size, dist)
+            } else {
+                null
+            }
+            dist
+        }.filterNotNull().minByOrNull { it.size }
+
+        log("toProtect: $toProtect")
+
+        return null
+    }
+
     fun doTentacles2(
         currentRootOrganId: Int, sensivity: Int, logString: String, selector: (GridPoint) -> Boolean
     ): Move? {
@@ -835,6 +857,7 @@ class Logic {
 
         //@formatter:off
         val result =
+            sentinel(currentRootOrganId, 5) ?:
             doTentacles2(currentRootOrganId, 5, "eten5", desk::isEnemyTentacle) ?:
             doTentacles2(currentRootOrganId, 5, "ereg5", desk::isEnemy) ?:
             doHarvFor(currentRootOrganId, A_CHAR, desk::isA) ?:
