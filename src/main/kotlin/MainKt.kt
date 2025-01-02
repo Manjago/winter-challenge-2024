@@ -3,7 +3,7 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
-val version = "4.2.0" // line with prior only space
+val version = "4.3.0" // space and unused protein
 
 lateinit var desk: Desk
 
@@ -686,7 +686,7 @@ class Logic {
         }
 
         val pathToEnemy = desk.getMyOrgans(currentRootOrganId).asSequence().flatMap {
-            bfsTo(it, selector, { spaceOrProtein(it) && !isInFrontOfEnemyTentacle(it) }, sensivity + 1).asSequence()
+            bfsTo(it, selector, { spaceOrUnusedProtein(it) && !isInFrontOfEnemyTentacle(it) }, sensivity + 1).asSequence()
                 .filter { it.size > 2 }.filter { it.size <= sensivity }.filter { !isInFrontOfEnemyTentacle(it[1]) }
         }.minByOrNull { it.size * 10000 + it.last().level() }
 
