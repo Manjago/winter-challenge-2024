@@ -3,7 +3,7 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
-val version = "3.8.9-rel" // aggressive grow nottouch not used protein (if I win), bug fix
+val version = "4.0.0-rel" // aggressive grow nottouch not used protein (if I win), bug fix
 
 lateinit var desk: Desk
 
@@ -709,10 +709,10 @@ class Logic {
         return this.asSequence().minBy { desk.distToCenter(it) }
     }
 
-    fun justGrow(currentOrganRootId: Int): Move? {
+    fun justGrow(currentOrganRootId: Int, allowedWalk: (GridPoint) -> Boolean = desk::isSpace): Move? {
         // paths to enemy
         val path = desk.getMyOrgans(currentOrganRootId).asSequence()
-            .flatMap { bfsTo(it, desk::isEnemy, ::spaceOrUnusedProtein).asSequence() }.filter { it.size > 2 }
+            .flatMap { bfsTo(it, desk::isEnemy, {allowedWalk(it)}).asSequence() }.filter { it.size > 2 }
             .filter { !isInFrontOfEnemyTentacle(it[1]) }.filter { desk.isEnemy(it.last()) }.minByOrNull { it.size }
 
         val (organFrom, next) = if (path != null) {
@@ -721,13 +721,13 @@ class Logic {
         } else {
             log("grow random")
             val organFrom = desk.getMyOrgans(currentOrganRootId).asSequence().filter {
-                desk.neighbours(it).any { spaceOrUnusedProtein(it) }
+                desk.neighbours(it).any { allowedWalk(it) }
             }.firstOrNull()
             if (organFrom == null) {
                 log("no organ for idle grow")
                 return null
             }
-            val next = desk.neighbours(organFrom).asSequence().filter { spaceOrUnusedProtein(it) }.first()
+            val next = desk.neighbours(organFrom).asSequence().filter { allowedWalk(it) }.first()
             organFrom to next
         }
 
