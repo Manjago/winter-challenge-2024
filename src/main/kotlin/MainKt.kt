@@ -3,7 +3,7 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
-val version = "4.0.0-rel" // aggressive grow nottouch not used protein (if I win), bug fix
+val version = "4.1.0" // aggressive grow nottouch not used protein (if I win), bug fix
 
 lateinit var desk: Desk
 
@@ -824,12 +824,12 @@ class Logic {
         //@formatter:off
         val result =
             doTentacles2(currentRootOrganId, 5, "eten5", desk::isEnemyTentacle) ?:
-            doSpore(currentRootOrganId) ?:
             doTentacles2(currentRootOrganId, 5, "ereg5", desk::isEnemy) ?:
             doHarvFor(currentRootOrganId, A_CHAR, desk::isA) ?:
             doHarvFor(currentRootOrganId, C_CHAR, desk::isC) ?:
             doHarvFor(currentRootOrganId, D_CHAR, desk::isD) ?:
             doHarvFor(currentRootOrganId, B_CHAR, desk::isB) ?:
+            doSpore(currentRootOrganId) ?:
             justGrow(currentRootOrganId) ?:
             agressiveGrow(currentRootOrganId) ?:
             Move.Wait.INSTANCE
