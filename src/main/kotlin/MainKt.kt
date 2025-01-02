@@ -3,7 +3,7 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
-val version = "4.5.4-rel" // remove short
+val version = "4.6.0-rel" // spore priority
 
 lateinit var desk: Desk
 
@@ -884,13 +884,13 @@ class Logic {
         //@formatter:off
         val result =
             sentinel(currentRootOrganId, 5) ?:
+            doSpore(currentRootOrganId) ?:
             doTentacles2(currentRootOrganId, 5, "eten5", desk::isEnemyTentacle) ?:
             doTentacles2(currentRootOrganId, 5, "ereg5", desk::isEnemy) ?:
             doHarvFor(currentRootOrganId, A_CHAR, desk::isA) ?:
             doHarvFor(currentRootOrganId, C_CHAR, desk::isC) ?:
             doHarvFor(currentRootOrganId, D_CHAR, desk::isD) ?:
             doHarvFor(currentRootOrganId, B_CHAR, desk::isB) ?:
-            doSpore(currentRootOrganId) ?:
             justGrow(currentRootOrganId) ?:
             agressiveGrow(currentRootOrganId) ?:
             Move.Wait.INSTANCE
