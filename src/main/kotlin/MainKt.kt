@@ -3,7 +3,7 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
-val version = "4.3.0" // space and unused protein
+val version = "4.4.0" // real path
 
 lateinit var desk: Desk
 
@@ -685,22 +685,33 @@ class Logic {
             return null
         }
 
-        val pathToEnemy = desk.getMyOrgans(currentRootOrganId).asSequence().flatMap {
+        val pathToEnemyTest = desk.getMyOrgans(currentRootOrganId).asSequence().flatMap {
+            bfsTo(it, selector, { spaceOrProtein(it) && !isInFrontOfEnemyTentacle(it) }, sensivity + 1).asSequence()
+                .filter { it.size > 2 }.filter { it.size <= sensivity }.filter { !isInFrontOfEnemyTentacle(it[1]) }
+        }.minByOrNull { it.size * 10000 + it.last().level() }
+
+        if (pathToEnemyTest == null) {
+            log("spim - not need t $logString")
+            return null
+        }
+
+        val pathToEnemyReal = desk.getMyOrgans(currentRootOrganId).asSequence().flatMap {
             bfsTo(it, selector, { spaceOrUnusedProtein(it) && !isInFrontOfEnemyTentacle(it) }, sensivity + 1).asSequence()
                 .filter { it.size > 2 }.filter { it.size <= sensivity }.filter { !isInFrontOfEnemyTentacle(it[1]) }
         }.minByOrNull { it.size * 10000 + it.last().level() }
 
-        if (pathToEnemy == null) {
-            log("spim - not need t $logString")
+        if (pathToEnemyReal == null) {
+            log("bad son - not real $logString")
             return null
-        } else {
-            log("path to enemy $logString size ${pathToEnemy.size}")
         }
 
-        val organ = pathToEnemy[0]
-        val growTo = pathToEnemy[1]
-        val toVictim = pathToEnemy[2]
-        log("alarm $logString ten from $organ grow $growTo for $toVictim cz ${pathToEnemy.last()}")
+        log("real path to enemy $logString size ${pathToEnemyReal.size}")
+
+
+        val organ = pathToEnemyReal[0]
+        val growTo = pathToEnemyReal[1]
+        val toVictim = pathToEnemyReal[2]
+        log("alarm $logString ten from $organ grow $growTo for $toVictim cz ${pathToEnemyReal.last()}")
         return tryTentacle(organ, growTo, toVictim)
     }
 
