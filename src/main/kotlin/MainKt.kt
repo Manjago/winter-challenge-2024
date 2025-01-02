@@ -3,7 +3,7 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
-val version = "4.4.4" // test sentinel and protected
+val version = "4.5.0" // try sentinel protect
 
 lateinit var desk: Desk
 
@@ -679,7 +679,14 @@ class Logic {
     fun isProtected(point: GridPoint): Boolean = desk.neighbours(point).asSequence().any { desk.isMy(it) && desk.isTentacle(it)
             && (desk.organDir(it) + it) == point }
 
+    fun List<GridPoint>.second() = this[1]
+
     fun sentinel(currentRootOrganId: Int, sensivity: Int): Move? {
+
+        if (!desk.myStock.enoughFor(ProteinStock.TENTACLE)) {
+            log("no energy for sentinel")
+            return null
+        }
 
         val toProtect = desk.getMyOrgans(currentRootOrganId).flatMap {
             desk.neighbours(it).filter { desk.isSpaceOrProtein(it) }
@@ -688,9 +695,28 @@ class Logic {
                 .filter { it.isNotEmpty() }.minByOrNull { it.size }
         }.filterNotNull()
         .filter { !isProtected(it.first()) }
+        .filter {it.size > 1}
         .minByOrNull { it.size }
 
         log("toProtect: $toProtect")
+
+        if (toProtect != null) {
+            val ourVictim = toProtect.first()
+            val enemyIncoming = toProtect.second()
+
+            val forTentacle = desk.neighbours(ourVictim).firstOrNull {
+               spaceOrUnusedProtein(it) && (it != enemyIncoming)
+           }
+
+            if (forTentacle != null) {
+                val organFrom = desk.neighbours(ourVictim).first{desk.isReallyMy(it, currentRootOrganId)
+                        && desk.isOrgan(it)}
+                log("protect from $organFrom to $forTentacle from $ourVictim")
+                return tryTentacle(organFrom, forTentacle, ourVictim)
+            } else {
+                log("no room to protect")
+            }
+        }
 
         return null
     }
