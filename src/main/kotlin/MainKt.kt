@@ -3,7 +3,7 @@ import java.io.InputStreamReader
 import java.util.*
 import kotlin.math.abs
 
-val version = "4.5.3" // remove obsolete log
+val version = "4.5.4-rel" // remove short
 
 lateinit var desk: Desk
 
@@ -359,7 +359,7 @@ class Logic {
             pretender += dir
         }
 
-        result.short()
+        //result.short()
         val prior = when {
             desk.inbound(pretender) && desk.isEnemy(pretender) -> 20000
             desk.inbound(pretender) && desk.isProtein(pretender) -> 15000
